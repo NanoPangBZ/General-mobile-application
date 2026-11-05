@@ -8,6 +8,10 @@
 .build/
 .buildlog/
 .history
+
+# 仓库内自包含工具链（develop_env_install 安装到这里，不入库）
+.tooling/
+__pycache__/
 .svn/
 .swiftpm/
 migrate_working_dir/

@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "note": "开发工具链版本锁。修改后所有设备执行 develop_env_install install 即可对齐。",
+  "flutter": {
+    "channel": "stable",
+    "version": "3.47.9",
+    "dart": "3.13.7"
+  },
+  "jdk": {
+    "distribution": "temurin",
+    "vendor": "eclipse",
+    "feature": 21,
+    "version": "21.0.13+9.0.LTS",
+    "overrides": {}
+  },
+  "android": {
+    "cmdlineTools": {
+      "revision": "19.0",
+      "buildNumber": "13114758"
+    },
+    "packages": [
+      "platform-tools",
+      "build-tools;36.0.0",
+      "platforms;android-36",
+      "ndk;28.2.13676358"
+    ]
+  },
+  "mirrors": {
+    "cn": {
+      "flutterStorage": "https://storage.flutter-io.cn",
+      "pubHosted": "https://pub.flutter-io.cn"
+    },
+    "global": {
+      "flutterStorage": "https://storage.googleapis.com",
+      "pubHosted": "https://pub.dev"
+    }
+  }
+}
