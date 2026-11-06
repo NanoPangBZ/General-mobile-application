@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import 'com_host_service.dart';
-import 'device_filter_config.dart';
+import 'device_description.dart';
 
 /// BLE central service. Select a writable and notifiable characteristic after
 /// connecting, then attach it to com_host as a byte transport.
@@ -129,12 +129,12 @@ class BleService {
     }
   }
 
-  Future<void> configureFromDeviceProfile({
+  Future<void> configureFromDeviceDescription({
     required List<BluetoothService> services,
-    required ConfiguredDevice profile,
+    required DeviceDescription description,
   }) async {
     final receiveUuid = Guid(
-      profile.sppble['notifyCharacteristicUuid'] as String,
+      description.sppble['notifyCharacteristicUuid'] as String,
     );
     BluetoothCharacteristic? receive;
     BluetoothCharacteristic? transmit;
@@ -149,7 +149,7 @@ class BleService {
     }
     if (receive == null) {
       throw StateError(
-        '找不到配置的通知特征 ${profile.sppble['notifyCharacteristicUuid']}',
+        '找不到配置的通知特征 ${description.sppble['notifyCharacteristicUuid']}',
       );
     }
     final receiveService = services.firstWhere(

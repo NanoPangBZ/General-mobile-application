@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 /// Device matching configuration embedded in the application bundle.
-const String deviceFilterJson = r'''
+const String deviceDescriptionJson = r'''
 {
   "devices": [
     {
@@ -22,25 +22,25 @@ const String deviceFilterJson = r'''
 }
 ''';
 
-class DeviceFilterConfig {
-  const DeviceFilterConfig({required this.devices});
+class DeviceDescriptionCatalog {
+  const DeviceDescriptionCatalog({required this.devices});
 
-  final List<ConfiguredDevice> devices;
+  final List<DeviceDescription> devices;
 
-  static DeviceFilterConfig fromJson(String source) {
+  static DeviceDescriptionCatalog fromJson(String source) {
     final json = jsonDecode(source) as Map<String, dynamic>;
-    return DeviceFilterConfig(
+    return DeviceDescriptionCatalog(
       devices: (json['devices'] as List<dynamic>)
           .map(
-            (item) => ConfiguredDevice.fromJson(item as Map<String, dynamic>),
+            (item) => DeviceDescription.fromJson(item as Map<String, dynamic>),
           )
           .toList(growable: false),
     );
   }
 }
 
-class ConfiguredDevice {
-  const ConfiguredDevice({
+class DeviceDescription {
+  const DeviceDescription({
     required this.productName,
     required this.bleNamePattern,
     required this.bleNameMatch,
@@ -52,9 +52,9 @@ class ConfiguredDevice {
   final String bleNameMatch;
   final Map<String, dynamic> sppble;
 
-  factory ConfiguredDevice.fromJson(Map<String, dynamic> json) {
+  factory DeviceDescription.fromJson(Map<String, dynamic> json) {
     final bleName = json['bleName'] as Map<String, dynamic>;
-    return ConfiguredDevice(
+    return DeviceDescription(
       productName: json['productName'] as String,
       bleNamePattern: bleName['pattern'] as String,
       bleNameMatch: bleName['match'] as String,
@@ -77,6 +77,6 @@ class ConfiguredDevice {
   }
 }
 
-final DeviceFilterConfig deviceFilterConfig = DeviceFilterConfig.fromJson(
-  deviceFilterJson,
+final DeviceDescriptionCatalog deviceDescriptions = DeviceDescriptionCatalog.fromJson(
+  deviceDescriptionJson,
 );

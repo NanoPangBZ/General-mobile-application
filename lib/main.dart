@@ -10,7 +10,7 @@ import 'ble_service.dart';
 import 'ble_device_page.dart';
 import 'device_page.dart';
 import 'com_host_service.dart';
-import 'device_filter_config.dart';
+import 'device_description.dart';
 import 'protocol_message_catalog.dart';
 import 'app_log_page.dart';
 
@@ -82,7 +82,7 @@ class _HomePageState extends State<HomePage> {
       final name = result.advertisementData.advName.isNotEmpty
           ? result.advertisementData.advName
           : result.device.platformName;
-      if (deviceFilterConfig.devices.any((device) => device.matches(name))) {
+      if (deviceDescriptions.devices.any((device) => device.matches(name))) {
         final index = _matchingDevices.indexWhere(
           (existing) =>
               existing.device.remoteId.str == result.device.remoteId.str,
@@ -151,7 +151,7 @@ class _HomePageState extends State<HomePage> {
     final name = result.advertisementData.advName.isNotEmpty
         ? result.advertisementData.advName
         : result.device.platformName;
-    final config = deviceFilterConfig.devices.firstWhere(
+    final description = deviceDescriptions.devices.firstWhere(
       (device) => device.matches(name),
     );
     final isOnline =
@@ -172,14 +172,14 @@ class _HomePageState extends State<HomePage> {
                 ),
               )
             : const CircleAvatar(child: Icon(Icons.speaker)),
-        title: Text(config.productName),
+        title: Text(description.productName),
         subtitle: Text(
           _connectingDeviceId == result.device.remoteId.str
               ? '正在连接并验证 Ping…'
               : 'BLE · $name',
         ),
         onTap: _connectingDeviceId == null
-            ? () => _connectAndValidate(result, config)
+            ? () => _connectAndValidate(result, description)
             : null,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -202,16 +202,16 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _connectAndValidate(
     ScanResult result,
-    ConfiguredDevice profile,
+    DeviceDescription description,
   ) async {
     final deviceId = result.device.remoteId.str;
     setState(() => _connectingDeviceId = deviceId);
     try {
       await _ble.stopScan();
       final services = await _ble.connect(result.device);
-      await _ble.configureFromDeviceProfile(
+      await _ble.configureFromDeviceDescription(
         services: services,
-        profile: profile,
+        description: description,
       );
       final catalog = await ProtocolMessageCatalog.load();
       final ping = catalog.byName('COM_HOST_MSG_ID_PING');
