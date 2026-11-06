@@ -9,6 +9,7 @@ import 'dart:ui' as ui;
 import 'ble_service.dart';
 import 'ble_device_page.dart';
 import 'device_page.dart';
+import 'ega_device_page.dart';
 import 'com_host_service.dart';
 import 'device_description.dart';
 import 'protocol_message_catalog.dart';
@@ -240,8 +241,9 @@ class _HomePageState extends State<HomePage> {
       }
       ping.decodeAck(ack.data);
       if (!mounted) return;
-      await Navigator.of(context)
-          .push(MaterialPageRoute<void>(builder: (_) => const DevicePage()));
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => _buildDevicePage(description)),
+      );
     } catch (error) {
       await _ble.disconnect();
       if (mounted) {
@@ -256,6 +258,13 @@ class _HomePageState extends State<HomePage> {
         }
       }
     }
+  }
+
+  Widget _buildDevicePage(DeviceDescription description) {
+    return switch (description.page) {
+      'ega' => const EgaDevicePage(),
+      _ => const DevicePage(),
+    };
   }
 
   @override

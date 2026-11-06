@@ -6,6 +6,7 @@ const String deviceDescriptionJson = r'''
   "devices": [
     {
       "productName": "电吉他音箱",
+      "page": "ega",
       "connection": {
         "pingAttempts": 3,
         "pingTimeoutMs": 400,
@@ -51,6 +52,7 @@ class DeviceDescription {
 
   const DeviceDescription({
     required this.productName,
+    required this.page,
     required this.bleNamePattern,
     required this.bleNameMatch,
     required this.pingAttempts,
@@ -60,6 +62,7 @@ class DeviceDescription {
   });
 
   final String productName;
+  final String page;
   final String bleNamePattern;
   final String bleNameMatch;
   final int pingAttempts;
@@ -71,6 +74,7 @@ class DeviceDescription {
     final bleName = json['bleName'] as Map<String, dynamic>;
     return DeviceDescription(
       productName: json['productName'] as String,
+      page: json['page'] as String? ?? 'default',
       bleNamePattern: bleName['pattern'] as String,
       bleNameMatch: bleName['match'] as String,
       pingAttempts:

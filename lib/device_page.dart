@@ -13,6 +13,10 @@ class DevicePage extends StatefulWidget {
 
   @override
   State<DevicePage> createState() => _DevicePageState();
+
+  String get pageTitle => '设备页';
+
+  Widget buildDeviceContent(BuildContext context) => const SizedBox.expand();
 }
 
 class _DevicePageState extends State<DevicePage> {
@@ -73,14 +77,14 @@ class _DevicePageState extends State<DevicePage> {
     },
     child: Scaffold(
       appBar: AppBar(
-        title: const Text('设备页'),
+        title: Text(widget.pageTitle),
         leading: IconButton(
           tooltip: '返回首页',
           onPressed: _returnHome,
           icon: const Icon(Icons.arrow_back),
         ),
       ),
-      body: const SizedBox.expand(),
+      body: widget.buildDeviceContent(context),
     ),
   );
 }
