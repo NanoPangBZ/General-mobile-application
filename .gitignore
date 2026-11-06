@@ -45,3 +45,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Android local SDK and Gradle state
+/android/local.properties
+/android/.gradle/
+/android/.kotlin/
+
+# Keep the Gradle wrapper required to build Android outside Android Studio.
+!/android/gradlew
+!/android/gradlew.bat
+!/android/gradle/wrapper/gradle-wrapper.jar
