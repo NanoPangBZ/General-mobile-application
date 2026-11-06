@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import 'com_host_service.dart';
+import 'ble_device_page.dart';
 import 'protocol_message_catalog.dart';
 
 void main() {
@@ -19,9 +20,35 @@ class DeveloperApp extends StatelessWidget {
     return MaterialApp(
       title: 'developer-app',
       theme: ThemeData(colorSchemeSeed: Colors.indigo, useMaterial3: true),
-      home: const ComHostTestPage(),
+      home: const HomePage(),
     );
   }
+}
+
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+
+  @override
+  Widget build(BuildContext context) => DefaultTabController(
+        length: 2,
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Developer App'),
+            bottom: const TabBar(
+              tabs: [
+                Tab(icon: Icon(Icons.cable), text: 'com_host'),
+                Tab(icon: Icon(Icons.bluetooth), text: 'BLE 设备'),
+              ],
+            ),
+          ),
+          body: const TabBarView(
+            children: [
+              ComHostTestPage(),
+              BleDevicePage(),
+            ],
+          ),
+        ),
+      );
 }
 
 class ComHostTestPage extends StatefulWidget {

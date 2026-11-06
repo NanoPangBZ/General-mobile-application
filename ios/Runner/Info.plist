@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>用于扫描并连接 BLE 设备，收发设备数据。</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>用于扫描并连接 BLE 设备，收发设备数据。</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
