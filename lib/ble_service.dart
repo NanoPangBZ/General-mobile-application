@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
+import 'com_host_service.dart';
+
 /// BLE central service. Select a writable and notifiable characteristic after
 /// connecting, then attach it to com_host as a byte transport.
 class BleService {
@@ -17,10 +19,14 @@ class BleService {
   BluetoothDevice? _device;
   BluetoothCharacteristic? _tx;
   BluetoothCharacteristic? _rx;
+  StreamController<Uint8List>? _byteStream;
+  StreamSubscription<List<int>>? _characteristicSubscription;
+  bool _transportAttached = false;
 
   Stream<List<ScanResult>> get scanResults => _results.stream;
   BluetoothDevice? get connectedDevice => _device;
   bool get isConnected => _device != null;
+  bool get transportConfigured => _rx != null && _tx != null && _transportAttached;
 
   Stream<Uint8List> get incomingBytes {
     final characteristic = _rx;
@@ -54,8 +60,14 @@ class BleService {
   Future<void> stopScan() => FlutterBluePlus.stopScan();
 
   Future<List<BluetoothService>> connect(BluetoothDevice device) async {
+    if (_device != null && _device!.remoteId == device.remoteId && device.isConnected) {
+      return device.discoverServices();
+    }
     if (_device != null && _device!.remoteId != device.remoteId) {
       await disconnect();
+    }
+    if (_device == null && ComHostService.instance.hasTransport) {
+      throw StateError('已有 BLE 字节流连接，请先断开当前设备');
     }
     if (device.isDisconnected) await device.connect(license: License.nonprofit);
     _device = device;
@@ -74,9 +86,20 @@ class BleService {
     if (!transmit.properties.write && !transmit.properties.writeWithoutResponse) {
       throw ArgumentError('Transmit characteristic must support write');
     }
+    await _characteristicSubscription?.cancel();
+    await _byteStream?.close();
     _rx = receive;
     _tx = transmit;
     await receive.setNotifyValue(true);
+    _byteStream = StreamController<Uint8List>.broadcast();
+    _characteristicSubscription = receive.onValueReceived.listen(
+      (bytes) => _byteStream?.add(Uint8List.fromList(bytes)),
+      onError: _byteStream?.addError,
+    );
+    if (!_transportAttached) {
+      ComHostService.instance.attachTransport(_byteStream!.stream, write);
+      _transportAttached = true;
+    }
   }
 
   Future<void> write(Uint8List bytes) async {
@@ -106,7 +129,21 @@ class BleService {
     );
   }
 
+  Stream<Uint8List> get byteStream {
+    final stream = _byteStream;
+    if (stream == null) throw StateError('BLE transport is not configured');
+    return stream.stream;
+  }
+
   Future<void> disconnect() async {
+    await _characteristicSubscription?.cancel();
+    _characteristicSubscription = null;
+    await _byteStream?.close();
+    _byteStream = null;
+    if (_transportAttached) {
+      await ComHostService.instance.detachTransport();
+      _transportAttached = false;
+    }
     _rx = null;
     _tx = null;
     final device = _device;

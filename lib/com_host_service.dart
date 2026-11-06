@@ -60,6 +60,14 @@ class ComHostService {
     _drain();
   }
 
+  /// Detach the current transport while keeping the one native host alive.
+  Future<void> detachTransport() async {
+    await _inputSubscription?.cancel();
+    _inputSubscription = null;
+    _write = null;
+    _pendingOutput.clear();
+  }
+
   /// Send a protocol message to COM_HOST_ID_MAIN_CONTROLLER (0x01).
   /// Returns its sequence number, or a negative error code.
   int send(int messageId, Uint8List data, {bool needAck = false}) {

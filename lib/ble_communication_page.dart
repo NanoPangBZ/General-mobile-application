@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import 'ble_service.dart';
+import 'com_host_service.dart';
+import 'protocol_message_catalog.dart';
 
 class BleCommunicationPage extends StatefulWidget {
   const BleCommunicationPage({
@@ -29,6 +31,7 @@ class _BleCommunicationPageState extends State<BleCommunicationPage> {
   BluetoothCharacteristic? _transmit;
   StreamSubscription<List<int>>? _incomingSubscription;
   bool _sending = false;
+  bool _pinging = false;
   String? _error;
 
   List<BluetoothCharacteristic> get _characteristics => widget.services
@@ -98,6 +101,35 @@ class _BleCommunicationPageState extends State<BleCommunicationPage> {
       if (mounted) setState(() => _error = '发送失败：$error');
     } finally {
       if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<void> _sendPing() async {
+    if (!_ble.isConnected || !_ble.transportConfigured) {
+      setState(() => _error = '请先配置 BLE RX/TX 特征值');
+      return;
+    }
+    setState(() {
+      _pinging = true;
+      _error = null;
+    });
+    try {
+      final catalog = await ProtocolMessageCatalog.load();
+      final ping = catalog.byName('COM_HOST_MSG_ID_PING');
+      final ack = await ComHostService.instance.sendAndWaitAck(
+        ping.id,
+        ping.encodeData(),
+      );
+      final decoded = ping.decodeAck(ack.data);
+      _append('PING ACK', Uint8List.fromList(ack.data));
+      if (mounted) {
+        setState(() => _error =
+            'Ping 成功：运行时间 ${decoded['uptime']} 秒，保留字段 ${decoded['rsvd']}');
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = 'Ping 失败：$error');
+    } finally {
+      if (mounted) setState(() => _pinging = false);
     }
   }
 
@@ -217,6 +249,17 @@ class _BleCommunicationPageState extends State<BleCommunicationPage> {
                       label: Text(_sending ? '发送中' : '发送'),
                     ),
                   ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _pinging || !_ble.transportConfigured ? null : _sendPing,
+                    icon: const Icon(Icons.network_ping),
+                    label: Text(_pinging ? 'Ping 等待应答…' : '发送 com_host Ping'),
+                  ),
                 ),
               ),
             ],
