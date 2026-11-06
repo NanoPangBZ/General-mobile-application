@@ -16,6 +16,17 @@
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		214B93B6175EDF9C0241282F /* com_host_bridge.c in Sources */ = {isa = PBXBuildFile; fileRef = C4DB7529E7C1C570FE443AE9 /* com_host_bridge.c */; };
+		42C57EDABD1D6F615039AE42 /* com_host.c in Sources */ = {isa = PBXBuildFile; fileRef = 88D1EE3DC0494A5F2F9DE683 /* com_host.c */; };
+		23F4C7B937EE5F83D8CD3945 /* com_host_packager.c in Sources */ = {isa = PBXBuildFile; fileRef = E7DAAA2F8ADFC040D0B1FFA6 /* com_host_packager.c */; };
+		9ACDF0DBF6A3D380B8B017AD /* com_host_port.c in Sources */ = {isa = PBXBuildFile; fileRef = FAAFA7816F813AE48669958A /* com_host_port.c */; };
+		8FE14AE98CE63C9CAD5D2FCF /* com_host_cfg_static_check.c in Sources */ = {isa = PBXBuildFile; fileRef = E8F34AB4567C15C6FEA6BB4B /* com_host_cfg_static_check.c */; };
+		763170B20A056703C0CC9245 /* com_host_crc16.c in Sources */ = {isa = PBXBuildFile; fileRef = 388CFAEF8DD385CD11C55206 /* com_host_crc16.c */; };
+		A4F680A2EED4730711035157 /* com_host_list.c in Sources */ = {isa = PBXBuildFile; fileRef = A52DA745508B76285F64A0C3 /* com_host_list.c */; };
+		06C413DD7D40983383A0A331 /* com_host_ringbuf.c in Sources */ = {isa = PBXBuildFile; fileRef = 01726D2679ECC8BD577FE1F1 /* com_host_ringbuf.c */; };
+		5887C612A942B9A2D7A7761D /* com_host_ll_heap.c in Sources */ = {isa = PBXBuildFile; fileRef = 63DE95C0EDF63630639C22C1 /* com_host_ll_heap.c */; };
+		332DCCF2D01116093B2885BE /* com_host_ll_systime.c in Sources */ = {isa = PBXBuildFile; fileRef = B98972E0C263C10504FD4C15 /* com_host_ll_systime.c */; };
+		1953AE246607497BB47D4FFD /* com_host_your_way_studio_packager.c in Sources */ = {isa = PBXBuildFile; fileRef = 0CDD67682DD070CB6BB38B86 /* com_host_your_way_studio_packager.c */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,6 +70,17 @@
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C4DB7529E7C1C570FE443AE9 /* com_host_bridge.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = com_host_bridge.c; path = "../native/com_host_bridge.c"; sourceTree = "<group>"; };
+		88D1EE3DC0494A5F2F9DE683 /* com_host.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = com_host.c; path = "../native/com_host/com_host.c"; sourceTree = "<group>"; };
+		E7DAAA2F8ADFC040D0B1FFA6 /* com_host_packager.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = com_host_packager.c; path = "../native/com_host/private/com_host_packager.c"; sourceTree = "<group>"; };
+		FAAFA7816F813AE48669958A /* com_host_port.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = com_host_port.c; path = "../native/com_host/private/com_host_port.c"; sourceTree = "<group>"; };
+		E8F34AB4567C15C6FEA6BB4B /* com_host_cfg_static_check.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = com_host_cfg_static_check.c; path = "../native/com_host/private/com_host_cfg_static_check.c"; sourceTree = "<group>"; };
+		388CFAEF8DD385CD11C55206 /* com_host_crc16.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = com_host_crc16.c; path = "../native/com_host/private/com_host_lib/com_host_crc16.c"; sourceTree = "<group>"; };
+		A52DA745508B76285F64A0C3 /* com_host_list.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = com_host_list.c; path = "../native/com_host/private/com_host_lib/com_host_list.c"; sourceTree = "<group>"; };
+		01726D2679ECC8BD577FE1F1 /* com_host_ringbuf.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = com_host_ringbuf.c; path = "../native/com_host/private/com_host_lib/com_host_ringbuf.c"; sourceTree = "<group>"; };
+		63DE95C0EDF63630639C22C1 /* com_host_ll_heap.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = com_host_ll_heap.c; path = "../native/com_host/private/com_host_ll_depend/com_host_ll_heap.c"; sourceTree = "<group>"; };
+		B98972E0C263C10504FD4C15 /* com_host_ll_systime.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = com_host_ll_systime.c; path = "../native/com_host/private/com_host_ll_depend/com_host_ll_systime.c"; sourceTree = "<group>"; };
+		0CDD67682DD070CB6BB38B86 /* com_host_your_way_studio_packager.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = com_host_your_way_studio_packager.c; path = "../native/com_host/private/com_host_package/com_host_your_way_studio_packager.c"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,6 +118,17 @@
 		97C146E51CF9000F007C117D = {
 			isa = PBXGroup;
 			children = (
+				C4DB7529E7C1C570FE443AE9 /* com_host_bridge.c */,
+				88D1EE3DC0494A5F2F9DE683 /* com_host.c */,
+				E7DAAA2F8ADFC040D0B1FFA6 /* com_host_packager.c */,
+				FAAFA7816F813AE48669958A /* com_host_port.c */,
+				E8F34AB4567C15C6FEA6BB4B /* com_host_cfg_static_check.c */,
+				388CFAEF8DD385CD11C55206 /* com_host_crc16.c */,
+				A52DA745508B76285F64A0C3 /* com_host_list.c */,
+				01726D2679ECC8BD577FE1F1 /* com_host_ringbuf.c */,
+				63DE95C0EDF63630639C22C1 /* com_host_ll_heap.c */,
+				B98972E0C263C10504FD4C15 /* com_host_ll_systime.c */,
+				0CDD67682DD070CB6BB38B86 /* com_host_your_way_studio_packager.c */,
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
 				97C146EF1CF9000F007C117D /* Products */,
@@ -281,6 +314,17 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				214B93B6175EDF9C0241282F /* com_host_bridge.c in Sources */,
+				42C57EDABD1D6F615039AE42 /* com_host.c in Sources */,
+				23F4C7B937EE5F83D8CD3945 /* com_host_packager.c in Sources */,
+				9ACDF0DBF6A3D380B8B017AD /* com_host_port.c in Sources */,
+				8FE14AE98CE63C9CAD5D2FCF /* com_host_cfg_static_check.c in Sources */,
+				763170B20A056703C0CC9245 /* com_host_crc16.c in Sources */,
+				A4F680A2EED4730711035157 /* com_host_list.c in Sources */,
+				06C413DD7D40983383A0A331 /* com_host_ringbuf.c in Sources */,
+				5887C612A942B9A2D7A7761D /* com_host_ll_heap.c in Sources */,
+				332DCCF2D01116093B2885BE /* com_host_ll_systime.c in Sources */,
+				1953AE246607497BB47D4FFD /* com_host_your_way_studio_packager.c in Sources */,
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
@@ -383,6 +427,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				HEADER_SEARCH_PATHS = ("$(inherited)", "$(PROJECT_DIR)/../native", "$(PROJECT_DIR)/../native/com_host");
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.developerApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -564,6 +609,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				HEADER_SEARCH_PATHS = ("$(inherited)", "$(PROJECT_DIR)/../native", "$(PROJECT_DIR)/../native/com_host");
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.developerApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -586,6 +632,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				HEADER_SEARCH_PATHS = ("$(inherited)", "$(PROJECT_DIR)/../native", "$(PROJECT_DIR)/../native/com_host");
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.developerApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";

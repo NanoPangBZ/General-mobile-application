@@ -114,6 +114,20 @@ flutter run -d emulator-5554   # 设备 ID 以 flutter devices 的实际输出�
 代码可触发热重载；终端按 `r` 手动热重载、按 `R` 热重启、按 `q` 结束运行。Android
 Studio 或 VS Code 打开仓库后，也可选择该模拟器作为设备并启动调试。
 
+关闭模拟器可直接关闭模拟器窗口，或在另一个已激活工具链的 PowerShell 中执行：
+
+```powershell
+adb emu kill                         # 关闭 ADB 当前连接的模拟器
+# 或者指定设备：
+adb -s emulator-5554 emu kill
+```
+
+如果启动时提示 `Another emulator instance is running`，通常是同一个 AVD 已经在运行。先用
+`adb devices` 查看设备；若该模拟器仍在线，直接使用它即可，不必再次启动。若窗口已关闭但设备仍残留，
+执行 `adb emu kill` 后稍等片刻再启动。仍无法关闭时，可在任务管理器结束对应的 `emulator.exe`，
+并确认没有其他终端或 Android Studio 正在启动该 AVD。不要删除 AVD 的锁文件来强制启动；运行中的模拟器
+仍占用其数据目录，删除锁文件可能造成虚拟设备数据损坏。
+
 ### 使用 ADB 在 Android 实机运行和调试
 
 在手机的开发者选项中启用 USB 调试，通过 USB 连接电脑；Windows 若未识别设备，需安装
@@ -148,6 +162,38 @@ flutter build apk --release --split-per-abi
 ```powershell
 adb install -r .\build\app\outputs\flutter-apk\app-release.apk
 ```
+
+## com_host 消息接口
+
+应用启动时在 `main()` 中初始化一次 `ComHostService.instance`。原生桥接固定创建
+`COM_HOST_ID_MOBOILE_APP`（`0xE0`）主机、一个端口，以及到
+`COM_HOST_ID_MAIN_CONTROLLER`（`0x01`）的一条路由；运行期间不销毁或重建。
+Android 将 C 代码编译进 APK，iOS 将同一组 C 源文件编译进 Runner。
+
+连接实际字节通道后，把通道收到的原始字节流和写入函数接到服务上：
+
+```dart
+final host = ComHostService.instance;
+host.attachTransport(incomingBytes, (bytes) => transport.write(bytes));
+
+host.messages.listen((message) {
+  // message.id / sender / sequence / data / isAck / needsAck
+  if (message.needsAck && !message.isAck) {
+    host.sendAck(message, Uint8List.fromList([0]));
+  }
+});
+
+final sequence = host.send(0x0000, Uint8List(0), needAck: true);
+```
+
+`incomingBytes` 的类型为 `Stream<Uint8List>`；`transport.write` 接收一段原始字节并返回
+`Future<void>`。接入 BLE、USB 等传输时只需实现这两个接口。`send` 返回序列号，负值表示
+原生库发送失败；ACK 使用收到消息的 ID、发送者和序列号。单条消息负载及单次传入数据块
+上限为 4096 字节，原生输入和输出队列各容纳 16 条；可查看 `droppedMessages` 和
+`droppedOutput` 判断是否发生队列溢出。所有调用应在主 Dart isolate 上串行进行。
+
+当前工程尚未接入真实的 BLE/USB 通道，因此模拟器上可以初始化库和运行界面，但无法与
+外部设备交换消息。
 
 ## 子模块
 
