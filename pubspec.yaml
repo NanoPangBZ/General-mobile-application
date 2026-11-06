@@ -60,6 +60,7 @@ flutter:
 
   assets:
     - native/com_host/protocol/flutter_msg_data_def/messages.json
+    - assets/images/gnu/gnu-head.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

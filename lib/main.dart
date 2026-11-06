@@ -26,15 +26,81 @@ class DeveloperApp extends StatelessWidget {
   }
 }
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  static const _tapWindow = Duration(seconds: 3);
+  int _cornerTapCount = 0;
+  Timer? _cornerTapTimer;
+
+  void _handleCornerTap() {
+    _cornerTapTimer?.cancel();
+    _cornerTapCount++;
+    if (_cornerTapCount >= 5) {
+      _cornerTapCount = 0;
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const DeveloperToolsPage()),
+      );
+      return;
+    }
+    _cornerTapTimer = Timer(_tapWindow, () => _cornerTapCount = 0);
+  }
+
+  @override
+  void dispose() {
+    _cornerTapTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('首页')),
+        body: Stack(
+          children: [
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    'assets/images/gnu/gnu-head.png',
+                    width: 180,
+                    height: 180,
+                    fit: BoxFit.contain,
+                    semanticLabel: 'GNU 吉祥物',
+                  ),
+                  const SizedBox(height: 20),
+                  Text('欢迎使用', style: Theme.of(context).textTheme.titleLarge),
+                ],
+              ),
+            ),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _handleCornerTap,
+                child: const SizedBox(width: 64, height: 64),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class DeveloperToolsPage extends StatelessWidget {
+  const DeveloperToolsPage({super.key});
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
         length: 3,
         child: Scaffold(
           appBar: AppBar(
-            title: const Text('Developer App'),
+            title: const Text('开发者工具'),
             bottom: const TabBar(
               tabs: [
                 Tab(icon: Icon(Icons.cable), text: 'com_host'),
@@ -44,11 +110,7 @@ class HomePage extends StatelessWidget {
             ),
           ),
           body: const TabBarView(
-            children: [
-              ComHostTestPage(),
-              BleDevicePage(),
-              AppLogPage(),
-            ],
+            children: [ComHostTestPage(), BleDevicePage(), AppLogPage()],
           ),
         ),
       );
