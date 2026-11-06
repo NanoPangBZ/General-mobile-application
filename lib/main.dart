@@ -6,9 +6,10 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import 'dart:ui' as ui;
 
-import 'com_host_service.dart';
 import 'ble_service.dart';
 import 'ble_device_page.dart';
+import 'device_page.dart';
+import 'com_host_service.dart';
 import 'device_filter_config.dart';
 import 'protocol_message_catalog.dart';
 import 'app_log_page.dart';
@@ -50,6 +51,7 @@ class _HomePageState extends State<HomePage> {
   Timer? _presenceTimer;
   bool _scanning = false;
   String? _scanError;
+  String? _connectingDeviceId;
 
   @override
   void initState() {
@@ -156,9 +158,25 @@ class _HomePageState extends State<HomePage> {
     return Card(
       color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
       child: ListTile(
-        leading: const CircleAvatar(child: Icon(Icons.speaker)),
+        leading: _connectingDeviceId == result.device.remoteId.str
+            ? const SizedBox(
+                width: 40,
+                height: 40,
+                child: Padding(
+                  padding: EdgeInsets.all(8),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : const CircleAvatar(child: Icon(Icons.speaker)),
         title: Text(config.productName),
-        subtitle: Text('BLE · $name'),
+        subtitle: Text(
+          _connectingDeviceId == result.device.remoteId.str
+              ? '正在连接并验证 Ping…'
+              : 'BLE · $name',
+        ),
+        onTap: _connectingDeviceId == null
+            ? () => _connectAndValidate(result, config)
+            : null,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -176,6 +194,62 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
+  }
+
+  Future<void> _connectAndValidate(
+    ScanResult result,
+    ConfiguredDevice profile,
+  ) async {
+    final deviceId = result.device.remoteId.str;
+    setState(() => _connectingDeviceId = deviceId);
+    try {
+      await _ble.stopScan();
+      final services = await _ble.connect(result.device);
+      await _ble.configureFromDeviceProfile(
+        services: services,
+        profile: profile,
+      );
+      final catalog = await ProtocolMessageCatalog.load();
+      final ping = catalog.byName('COM_HOST_MSG_ID_PING');
+      ComHostMessage? ack;
+      for (var attempt = 1; attempt <= 3; attempt++) {
+        try {
+          ack = await ComHostService.instance.sendAndWaitAck(
+            ping.id,
+            ping.encodeData(),
+            timeout: const Duration(milliseconds: 200),
+          );
+          break;
+        } catch (error) {
+          if (attempt < 3) {
+            await Future<void>.delayed(const Duration(milliseconds: 300));
+          }
+        }
+      }
+      if (ack == null) {
+        throw TimeoutException(
+          'Ping 三次均未收到应答',
+          const Duration(milliseconds: 200),
+        );
+      }
+      ping.decodeAck(ack.data);
+      if (!mounted) return;
+      await Navigator.of(context)
+          .push(MaterialPageRoute<void>(builder: (_) => const DevicePage()));
+    } catch (error) {
+      await _ble.disconnect();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('连接或 Ping 验证失败：$error')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _connectingDeviceId = null);
+        if (!FlutterBluePlus.isScanningNow) {
+          unawaited(_scanForConfiguredDevices());
+        }
+      }
+    }
   }
 
   @override

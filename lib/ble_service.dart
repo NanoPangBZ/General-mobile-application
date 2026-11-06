@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import 'com_host_service.dart';
+import 'device_filter_config.dart';
 
 /// BLE central service. Select a writable and notifiable characteristic after
 /// connecting, then attach it to com_host as a byte transport.
@@ -83,7 +84,16 @@ class BleService {
     if (_device == null && ComHostService.instance.hasTransport) {
       throw StateError('已有 BLE 字节流连接，请先断开当前设备');
     }
-    if (device.isDisconnected) await device.connect(license: License.nonprofit);
+    if (device.isDisconnected) {
+      try {
+        await device
+            .connect(license: License.nonprofit)
+            .timeout(const Duration(milliseconds: 1000));
+      } on TimeoutException {
+        await device.disconnect();
+        rethrow;
+      }
+    }
     _device = device;
     return device.discoverServices();
   }
@@ -117,6 +127,46 @@ class BleService {
       ComHostService.instance.attachTransport(_byteStream!.stream, write);
       _transportAttached = true;
     }
+  }
+
+  Future<void> configureFromDeviceProfile({
+    required List<BluetoothService> services,
+    required ConfiguredDevice profile,
+  }) async {
+    final receiveUuid = Guid(
+      profile.sppble['notifyCharacteristicUuid'] as String,
+    );
+    BluetoothCharacteristic? receive;
+    BluetoothCharacteristic? transmit;
+    for (final service in services) {
+      for (final characteristic in service.characteristics) {
+        if (characteristic.characteristicUuid == receiveUuid &&
+            (characteristic.properties.notify ||
+                characteristic.properties.indicate)) {
+          receive = characteristic;
+        }
+      }
+    }
+    if (receive == null) {
+      throw StateError(
+        '找不到配置的通知特征 ${profile.sppble['notifyCharacteristicUuid']}',
+      );
+    }
+    final receiveService = services.firstWhere(
+      (service) => service.serviceUuid == receive!.serviceUuid,
+    );
+    for (final characteristic in receiveService.characteristics) {
+      if (characteristic.characteristicUuid == receive.characteristicUuid) {
+        continue;
+      }
+      if (characteristic.properties.write ||
+          characteristic.properties.writeWithoutResponse) {
+        transmit = characteristic;
+        break;
+      }
+    }
+    if (transmit == null) throw StateError('通知特征所在服务没有可写 TX 特征');
+    await configureTransport(receive: receive, transmit: transmit);
   }
 
   Future<void> write(Uint8List bytes) async {

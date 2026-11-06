@@ -29,7 +29,11 @@ class ComHostMessage {
 }
 
 class ComHostNativeLog {
-  const ComHostNativeLog({required this.level, required this.timestampMs, required this.text});
+  const ComHostNativeLog({
+    required this.level,
+    required this.timestampMs,
+    required this.text,
+  });
 
   final int level;
   final int timestampMs;
@@ -106,14 +110,19 @@ class ComHostService {
   }) async {
     final completer = Completer<ComHostMessage>();
     int? expectedSequence;
-    final subscription = messages.listen((message) {
-      if (message.isAck && message.id == messageId &&
-          message.sequence == expectedSequence && !completer.isCompleted) {
-        completer.complete(message);
-      }
-    }, onError: (Object error, StackTrace stack) {
-      if (!completer.isCompleted) completer.completeError(error, stack);
-    });
+    final subscription = messages.listen(
+      (message) {
+        if (message.isAck &&
+            message.id == messageId &&
+            message.sequence == expectedSequence &&
+            !completer.isCompleted) {
+          completer.complete(message);
+        }
+      },
+      onError: (Object error, StackTrace stack) {
+        if (!completer.isCompleted) completer.completeError(error, stack);
+      },
+    );
     try {
       final sequence = send(messageId, data, needAck: true);
       if (sequence < 0) throw StateError('Native send failed: $sequence');
@@ -126,11 +135,19 @@ class ComHostService {
 
   /// Reply to a received request using its sender, id and sequence.
   int sendAck(ComHostMessage request, Uint8List data) {
-    if (request.isAck || !request.needsAck || data.isEmpty || data.length > _native.capacity) {
+    if (request.isAck ||
+        !request.needsAck ||
+        data.isEmpty ||
+        data.length > _native.capacity) {
       throw ArgumentError('Invalid ACK request or payload');
     }
     _native.buffer.asTypedList(data.length).setAll(0, data);
-    final result = _native.sendAck(request.sender, request.id, request.sequence, data.length);
+    final result = _native.sendAck(
+      request.sender,
+      request.id,
+      request.sequence,
+      data.length,
+    );
     _drain();
     return result;
   }
@@ -142,7 +159,9 @@ class ComHostService {
       final end = offset + _native.capacity < bytes.length
           ? offset + _native.capacity
           : bytes.length;
-      _native.buffer.asTypedList(end - offset).setAll(0, bytes.sublist(offset, end));
+      _native.buffer
+          .asTypedList(end - offset)
+          .setAll(0, bytes.sublist(offset, end));
       final result = _native.feed(end - offset);
       if (result != 0) throw StateError('com_host input queue failed: $result');
     }
@@ -156,24 +175,28 @@ class ComHostService {
       if (encodedLength == 0) break;
       final length = encodedLength - 1;
       final bytes = Uint8List.fromList(_native.buffer.asTypedList(length));
-      _nativeLogs.add(ComHostNativeLog(
-        level: _native.logLevel(),
-        timestampMs: _native.logTimestamp(),
-        text: String.fromCharCodes(bytes),
-      ));
+      _nativeLogs.add(
+        ComHostNativeLog(
+          level: _native.logLevel(),
+          timestampMs: _native.logTimestamp(),
+          text: String.fromCharCodes(bytes),
+        ),
+      );
     }
     while (true) {
       final encodedLength = _native.takeMessage();
       if (encodedLength == 0) break;
       final length = encodedLength - 1;
-      _messages.add(ComHostMessage(
-        id: _native.messageId(),
-        sender: _native.messageSender(),
-        sequence: _native.messageSeq(),
-        needsAck: _native.messageNeedsAck() != 0,
-        isAck: _native.messageIsAck() != 0,
-        data: Uint8List.fromList(_native.buffer.asTypedList(length)),
-      ));
+      _messages.add(
+        ComHostMessage(
+          id: _native.messageId(),
+          sender: _native.messageSender(),
+          sequence: _native.messageSeq(),
+          needsAck: _native.messageNeedsAck() != 0,
+          isAck: _native.messageIsAck() != 0,
+          data: Uint8List.fromList(_native.buffer.asTypedList(length)),
+        ),
+      );
     }
     while (true) {
       final length = _native.takeOutput();
@@ -205,30 +228,76 @@ class _NativeHost {
     final library = Platform.isAndroid
         ? DynamicLibrary.open('libcom_host_bridge.so')
         : Platform.isIOS
-            ? DynamicLibrary.process()
-            : throw UnsupportedError('com_host supports Android and iOS only');
-    init = library.lookupFunction<Int32 Function(), int Function()>('mobile_host_init');
-    final bufferFn = library.lookupFunction<Pointer<Uint8> Function(), Pointer<Uint8> Function()>('mobile_host_buffer');
+        ? DynamicLibrary.process()
+        : throw UnsupportedError('com_host supports Android and iOS only');
+    init = library.lookupFunction<Int32 Function(), int Function()>(
+      'mobile_host_init',
+    );
+    final bufferFn = library
+        .lookupFunction<Pointer<Uint8> Function(), Pointer<Uint8> Function()>(
+          'mobile_host_buffer',
+        );
     buffer = bufferFn();
-    final capacityFn = library.lookupFunction<Uint32 Function(), int Function()>('mobile_host_buffer_capacity');
+    final capacityFn = library
+        .lookupFunction<Uint32 Function(), int Function()>(
+          'mobile_host_buffer_capacity',
+        );
     capacity = capacityFn();
-    send = library.lookupFunction<Int32 Function(Uint16, Uint16, Uint8), int Function(int, int, int)>('mobile_host_send');
-    sendAck = library.lookupFunction<Int32 Function(Uint8, Uint16, Uint8, Uint16), int Function(int, int, int, int)>('mobile_host_send_ack');
-    feed = library.lookupFunction<Int32 Function(Uint32), int Function(int)>('mobile_host_feed');
-    takeOutput = library.lookupFunction<Int32 Function(), int Function()>('mobile_host_take_output');
-    takeMessage = library.lookupFunction<Int32 Function(), int Function()>('mobile_host_take_message');
-    takeLog = library.lookupFunction<Int32 Function(), int Function()>('mobile_host_take_log');
-    logLevel = library.lookupFunction<Int32 Function(), int Function()>('mobile_host_log_level');
-    logTimestamp = library.lookupFunction<Uint32 Function(), int Function()>('mobile_host_log_timestamp');
-    messageId = library.lookupFunction<Uint16 Function(), int Function()>('mobile_host_message_id');
-    messageSender = library.lookupFunction<Uint8 Function(), int Function()>('mobile_host_message_sender');
-    messageSeq = library.lookupFunction<Uint8 Function(), int Function()>('mobile_host_message_seq');
-    messageNeedsAck = library.lookupFunction<Uint8 Function(), int Function()>('mobile_host_message_need_ack');
-    messageIsAck = library.lookupFunction<Uint8 Function(), int Function()>('mobile_host_message_is_ack');
-    droppedOutput = library.lookupFunction<Uint32 Function(), int Function()>('mobile_host_dropped_output');
-    droppedMessages = library.lookupFunction<Uint32 Function(), int Function()>('mobile_host_dropped_messages');
-    run = library.lookupFunction<Void Function(), void Function()>('mobile_host_run');
-    droppedInput = library.lookupFunction<Uint32 Function(), int Function()>('mobile_host_dropped_input');
+    send = library
+        .lookupFunction<
+          Int32 Function(Uint16, Uint16, Uint8),
+          int Function(int, int, int)
+        >('mobile_host_send');
+    sendAck = library
+        .lookupFunction<
+          Int32 Function(Uint8, Uint16, Uint8, Uint16),
+          int Function(int, int, int, int)
+        >('mobile_host_send_ack');
+    feed = library.lookupFunction<Int32 Function(Uint32), int Function(int)>(
+      'mobile_host_feed',
+    );
+    takeOutput = library.lookupFunction<Int32 Function(), int Function()>(
+      'mobile_host_take_output',
+    );
+    takeMessage = library.lookupFunction<Int32 Function(), int Function()>(
+      'mobile_host_take_message',
+    );
+    takeLog = library.lookupFunction<Int32 Function(), int Function()>(
+      'mobile_host_take_log',
+    );
+    logLevel = library.lookupFunction<Int32 Function(), int Function()>(
+      'mobile_host_log_level',
+    );
+    logTimestamp = library.lookupFunction<Uint32 Function(), int Function()>(
+      'mobile_host_log_timestamp',
+    );
+    messageId = library.lookupFunction<Uint16 Function(), int Function()>(
+      'mobile_host_message_id',
+    );
+    messageSender = library.lookupFunction<Uint8 Function(), int Function()>(
+      'mobile_host_message_sender',
+    );
+    messageSeq = library.lookupFunction<Uint8 Function(), int Function()>(
+      'mobile_host_message_seq',
+    );
+    messageNeedsAck = library.lookupFunction<Uint8 Function(), int Function()>(
+      'mobile_host_message_need_ack',
+    );
+    messageIsAck = library.lookupFunction<Uint8 Function(), int Function()>(
+      'mobile_host_message_is_ack',
+    );
+    droppedOutput = library.lookupFunction<Uint32 Function(), int Function()>(
+      'mobile_host_dropped_output',
+    );
+    droppedMessages = library.lookupFunction<Uint32 Function(), int Function()>(
+      'mobile_host_dropped_messages',
+    );
+    run = library.lookupFunction<Void Function(), void Function()>(
+      'mobile_host_run',
+    );
+    droppedInput = library.lookupFunction<Uint32 Function(), int Function()>(
+      'mobile_host_dropped_input',
+    );
   }
 
   late final int Function() init;
