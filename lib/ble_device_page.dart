@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import 'ble_service.dart';
+import 'ble_communication_page.dart';
 
 class BleDevicePage extends StatefulWidget {
   const BleDevicePage({super.key});
@@ -50,9 +51,10 @@ class _BleDevicePageState extends State<BleDevicePage> {
     try {
       final services = await _ble.connect(device);
       if (!mounted) return;
-      setState(() => _status =
-          '已连接 ${device.platformName.isEmpty ? device.remoteId.str : device.platformName}，'
-          '发现 ${services.length} 个服务。请按设备协议选择 RX/TX 特征值。');
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => BleCommunicationPage(device: device, services: services),
+      ));
+      if (mounted) setState(() => _status = '已断开连接');
     } catch (error) {
       if (mounted) setState(() => _status = '连接失败：$error');
     }

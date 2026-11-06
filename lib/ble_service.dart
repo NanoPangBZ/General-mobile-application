@@ -17,7 +17,6 @@ class BleService {
   BluetoothDevice? _device;
   BluetoothCharacteristic? _tx;
   BluetoothCharacteristic? _rx;
-  StreamSubscription<List<int>>? _notifySubscription;
 
   Stream<List<ScanResult>> get scanResults => _results.stream;
   BluetoothDevice? get connectedDevice => _device;
@@ -75,7 +74,6 @@ class BleService {
     if (!transmit.properties.write && !transmit.properties.writeWithoutResponse) {
       throw ArgumentError('Transmit characteristic must support write');
     }
-    await _notifySubscription?.cancel();
     _rx = receive;
     _tx = transmit;
     await receive.setNotifyValue(true);
@@ -94,9 +92,21 @@ class BleService {
     }
   }
 
+  StreamSubscription<List<int>> listenIncoming(
+    void Function(Uint8List bytes) onData, {
+    Function? onError,
+  }) {
+    final characteristic = _rx;
+    if (characteristic == null) {
+      throw StateError('Select a notify characteristic before reading');
+    }
+    return characteristic.onValueReceived.listen(
+      (value) => onData(Uint8List.fromList(value)),
+      onError: onError,
+    );
+  }
+
   Future<void> disconnect() async {
-    await _notifySubscription?.cancel();
-    _notifySubscription = null;
     _rx = null;
     _tx = null;
     final device = _device;
