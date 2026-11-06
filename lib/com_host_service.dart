@@ -22,6 +22,10 @@ class ComHostMessage {
   final bool needsAck;
   final bool isAck;
   final Uint8List data;
+
+  String get dataHex => data
+      .map((byte) => byte.toRadixString(16).padLeft(2, '0').toUpperCase())
+      .join(' ');
 }
 
 /// One native host, one port and one route for the entire app process.

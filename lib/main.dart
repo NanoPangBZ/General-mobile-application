@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'com_host_service.dart';
 import 'ble_device_page.dart';
 import 'protocol_message_catalog.dart';
+import 'app_log_page.dart';
 
 void main() {
   ComHostService.instance.initialize();
@@ -30,7 +31,7 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
-        length: 2,
+        length: 3,
         child: Scaffold(
           appBar: AppBar(
             title: const Text('Developer App'),
@@ -38,6 +39,7 @@ class HomePage extends StatelessWidget {
               tabs: [
                 Tab(icon: Icon(Icons.cable), text: 'com_host'),
                 Tab(icon: Icon(Icons.bluetooth), text: 'BLE 设备'),
+                Tab(icon: Icon(Icons.receipt_long), text: '应用日志'),
               ],
             ),
           ),
@@ -45,6 +47,7 @@ class HomePage extends StatelessWidget {
             children: [
               ComHostTestPage(),
               BleDevicePage(),
+              AppLogPage(),
             ],
           ),
         ),
