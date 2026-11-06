@@ -2,27 +2,29 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import 'com_host_service.dart';
+import '../com_host_service.dart';
 
 /// In-memory application log. It only subscribes to messages delivered to
 /// Flutter by com_host; framework and native library logs are not collected.
-class AppLogService extends ChangeNotifier {
-  AppLogService._() {
+class TestAppLogService extends ChangeNotifier {
+  TestAppLogService._() {
     _subscription = ComHostService.instance.messages.listen(_recordMessage);
-    _nativeLogSubscription = ComHostService.instance.nativeLogs.listen(_recordNativeLog);
+    _nativeLogSubscription = ComHostService.instance.nativeLogs.listen(
+      _recordNativeLog,
+    );
   }
 
-  static final AppLogService instance = AppLogService._();
+  static final TestAppLogService instance = TestAppLogService._();
   static const int maxEntries = 500;
 
-  final List<AppLogEntry> _entries = <AppLogEntry>[];
+  final List<TestAppLogEntry> _entries = <TestAppLogEntry>[];
   late final StreamSubscription<ComHostMessage> _subscription;
   late final StreamSubscription<ComHostNativeLog> _nativeLogSubscription;
 
-  List<AppLogEntry> get entries => List.unmodifiable(_entries);
+  List<TestAppLogEntry> get entries => List.unmodifiable(_entries);
 
   void _recordMessage(ComHostMessage message) {
-    _entries.insert(0, AppLogEntry.fromMessage(message));
+    _entries.insert(0, TestAppLogEntry.fromMessage(message));
     if (_entries.length > maxEntries) {
       _entries.removeRange(maxEntries, _entries.length);
     }
@@ -30,7 +32,7 @@ class AppLogService extends ChangeNotifier {
   }
 
   void _recordNativeLog(ComHostNativeLog log) {
-    _entries.insert(0, AppLogEntry.fromNativeLog(log));
+    _entries.insert(0, TestAppLogEntry.fromNativeLog(log));
     if (_entries.length > maxEntries) {
       _entries.removeRange(maxEntries, _entries.length);
     }
@@ -51,8 +53,8 @@ class AppLogService extends ChangeNotifier {
   }
 }
 
-class AppLogEntry {
-  const AppLogEntry({
+class TestAppLogEntry {
+  const TestAppLogEntry({
     required this.time,
     required this.messageId,
     required this.sender,
@@ -66,7 +68,8 @@ class AppLogEntry {
     required this.text,
   });
 
-  factory AppLogEntry.fromMessage(ComHostMessage message) => AppLogEntry(
+  factory TestAppLogEntry.fromMessage(ComHostMessage message) =>
+      TestAppLogEntry(
         time: DateTime.now(),
         messageId: message.id,
         sender: message.sender,
@@ -80,7 +83,8 @@ class AppLogEntry {
         text: null,
       );
 
-  factory AppLogEntry.fromNativeLog(ComHostNativeLog log) => AppLogEntry(
+  factory TestAppLogEntry.fromNativeLog(ComHostNativeLog log) =>
+      TestAppLogEntry(
         time: DateTime.now(),
         messageId: 0,
         sender: 0,

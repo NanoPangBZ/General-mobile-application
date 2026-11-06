@@ -1,43 +1,46 @@
 import 'package:flutter/material.dart';
 
-import 'app_log_service.dart';
+import 'test_app_log_service.dart';
 
-class AppLogPage extends StatelessWidget {
-  const AppLogPage({super.key});
+class TestAppLogPage extends StatelessWidget {
+  const TestAppLogPage({super.key});
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-        animation: AppLogService.instance,
-        builder: (context, _) {
-          final entries = AppLogService.instance.entries;
-          return Scaffold(
-            appBar: AppBar(
-              title: Text('应用日志 (${entries.length})'),
-              actions: [
-                IconButton(
-                  tooltip: '清空日志',
-                  onPressed: entries.isEmpty ? null : AppLogService.instance.clear,
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ],
+    animation: TestAppLogService.instance,
+    builder: (context, _) {
+      final entries = TestAppLogService.instance.entries;
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('应用日志 (${entries.length})'),
+          actions: [
+            IconButton(
+              tooltip: '清空日志',
+              onPressed: entries.isEmpty
+                  ? null
+                  : TestAppLogService.instance.clear,
+              icon: const Icon(Icons.delete_outline),
             ),
-            body: entries.isEmpty
-                ? const Center(child: Text('等待 com_host 消息回调…'))
-                : ListView.separated(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: entries.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) => _LogTile(entry: entries[index]),
-                  ),
-          );
-        },
+          ],
+        ),
+        body: entries.isEmpty
+            ? const Center(child: Text('等待 com_host 消息回调…'))
+            : ListView.separated(
+                padding: const EdgeInsets.all(12),
+                itemCount: entries.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (context, index) =>
+                    _TestLogTile(entry: entries[index]),
+              ),
       );
+    },
+  );
 }
 
-class _LogTile extends StatelessWidget {
-  const _LogTile({required this.entry});
+class _TestLogTile extends StatelessWidget {
+  const _TestLogTile({required this.entry});
 
-  final AppLogEntry entry;
+  final TestAppLogEntry entry;
 
   @override
   Widget build(BuildContext context) {
@@ -54,10 +57,15 @@ class _LogTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${entry.formattedTime}  ${entry.source}  ${nativeLevel ?? 'LOG'}',
-                style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              '${entry.formattedTime}  ${entry.source}  ${nativeLevel ?? 'LOG'}',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
             const SizedBox(height: 4),
-            SelectableText(entry.text!, style: const TextStyle(fontFamily: 'monospace')),
+            SelectableText(
+              entry.text!,
+              style: const TextStyle(fontFamily: 'monospace'),
+            ),
           ],
         ),
       );
