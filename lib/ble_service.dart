@@ -24,9 +24,12 @@ class BleService {
   bool _transportAttached = false;
 
   Stream<List<ScanResult>> get scanResults => _results.stream;
+  List<ScanResult> get currentScanResults =>
+      List.unmodifiable(_scanResults.values);
   BluetoothDevice? get connectedDevice => _device;
   bool get isConnected => _device != null;
-  bool get transportConfigured => _rx != null && _tx != null && _transportAttached;
+  bool get transportConfigured =>
+      _rx != null && _tx != null && _transportAttached;
 
   Stream<Uint8List> get incomingBytes {
     final characteristic = _rx;
@@ -42,8 +45,11 @@ class BleService {
       FlutterBluePlus.adapterState;
 
   Future<void> startScan({
-    Duration timeout = const Duration(seconds: 10),
+    Duration? timeout = const Duration(seconds: 10),
     List<Guid> withServices = const [],
+    bool continuousUpdates = false,
+    int continuousDivisor = 1,
+    AndroidScanMode androidScanMode = AndroidScanMode.lowLatency,
   }) async {
     _scanResults.clear();
     await _scanSubscription?.cancel();
@@ -54,13 +60,21 @@ class BleService {
       _results.add(List.unmodifiable(_scanResults.values));
     }, onError: _results.addError);
     FlutterBluePlus.cancelWhenScanComplete(_scanSubscription!);
-    await FlutterBluePlus.startScan(timeout: timeout, withServices: withServices);
+    await FlutterBluePlus.startScan(
+      timeout: timeout,
+      withServices: withServices,
+      continuousUpdates: continuousUpdates,
+      continuousDivisor: continuousDivisor,
+      androidScanMode: androidScanMode,
+    );
   }
 
   Future<void> stopScan() => FlutterBluePlus.stopScan();
 
   Future<List<BluetoothService>> connect(BluetoothDevice device) async {
-    if (_device != null && _device!.remoteId == device.remoteId && device.isConnected) {
+    if (_device != null &&
+        _device!.remoteId == device.remoteId &&
+        device.isConnected) {
       return device.discoverServices();
     }
     if (_device != null && _device!.remoteId != device.remoteId) {
@@ -81,9 +95,12 @@ class BleService {
   }) async {
     if (_device == null) throw StateError('Connect to a device first');
     if (!receive.properties.notify && !receive.properties.indicate) {
-      throw ArgumentError('Receive characteristic must support notify/indicate');
+      throw ArgumentError(
+        'Receive characteristic must support notify/indicate',
+      );
     }
-    if (!transmit.properties.write && !transmit.properties.writeWithoutResponse) {
+    if (!transmit.properties.write &&
+        !transmit.properties.writeWithoutResponse) {
       throw ArgumentError('Transmit characteristic must support write');
     }
     await _characteristicSubscription?.cancel();
@@ -105,13 +122,19 @@ class BleService {
   Future<void> write(Uint8List bytes) async {
     final characteristic = _tx;
     if (characteristic == null) throw StateError('Transport is not configured');
-    final withoutResponse = characteristic.properties.writeWithoutResponse &&
+    final withoutResponse =
+        characteristic.properties.writeWithoutResponse &&
         !characteristic.properties.write;
     final maxChunk = (await _device!.mtu.first) - 3;
     for (var offset = 0; offset < bytes.length; offset += maxChunk) {
-      final end = (offset + maxChunk < bytes.length) ? offset + maxChunk : bytes.length;
-      await characteristic.write(bytes.sublist(offset, end),
-          withoutResponse: withoutResponse, allowLongWrite: !withoutResponse);
+      final end = (offset + maxChunk < bytes.length)
+          ? offset + maxChunk
+          : bytes.length;
+      await characteristic.write(
+        bytes.sublist(offset, end),
+        withoutResponse: withoutResponse,
+        allowLongWrite: !withoutResponse,
+      );
     }
   }
 

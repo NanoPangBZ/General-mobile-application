@@ -2,9 +2,14 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+
+import 'dart:ui' as ui;
 
 import 'com_host_service.dart';
+import 'ble_service.dart';
 import 'ble_device_page.dart';
+import 'device_filter_config.dart';
 import 'protocol_message_catalog.dart';
 import 'app_log_page.dart';
 
@@ -34,9 +39,70 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final _ble = BleService.instance;
   static const _tapWindow = Duration(seconds: 3);
   int _cornerTapCount = 0;
   Timer? _cornerTapTimer;
+  StreamSubscription<List<ScanResult>>? _scanResultsSubscription;
+  StreamSubscription<bool>? _scanningSubscription;
+  final List<ScanResult> _matchingDevices = [];
+  final Map<String, DateTime> _lastSeen = {};
+  Timer? _presenceTimer;
+  bool _scanning = false;
+  String? _scanError;
+
+  @override
+  void initState() {
+    super.initState();
+    _scanResultsSubscription = _ble.scanResults.listen(
+      _updateDevices,
+      onError: (Object error) {
+        if (mounted) setState(() => _scanError = error.toString());
+      },
+    );
+    _scanningSubscription = FlutterBluePlus.isScanning.listen((scanning) {
+      if (mounted) setState(() => _scanning = scanning);
+    });
+    _presenceTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+      if (mounted && _matchingDevices.isNotEmpty) setState(() {});
+    });
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _scanForConfiguredDevices(),
+    );
+  }
+
+  void _updateDevices(List<ScanResult> results) {
+    for (final result in results) {
+      final name = result.advertisementData.advName.isNotEmpty
+          ? result.advertisementData.advName
+          : result.device.platformName;
+      if (deviceFilterConfig.devices.any((device) => device.matches(name))) {
+        final index = _matchingDevices.indexWhere(
+          (existing) =>
+              existing.device.remoteId.str == result.device.remoteId.str,
+        );
+        if (index == -1) {
+          _matchingDevices.add(result);
+        } else {
+          _matchingDevices[index] = result;
+        }
+        _lastSeen[result.device.remoteId.str] = result.timeStamp;
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _scanForConfiguredDevices() async {
+    try {
+      if (!await _ble.isSupported) {
+        if (mounted) setState(() => _scanError = '此设备不支持蓝牙');
+        return;
+      }
+      await _ble.startScan(timeout: null, continuousUpdates: true);
+    } catch (error) {
+      if (mounted) setState(() => _scanError = '无法扫描 BLE 设备：$error');
+    }
+  }
 
   void _handleCornerTap() {
     _cornerTapTimer?.cancel();
@@ -51,45 +117,126 @@ class _HomePageState extends State<HomePage> {
     _cornerTapTimer = Timer(_tapWindow, () => _cornerTapCount = 0);
   }
 
+  Widget _buildScanStatus() {
+    final text = _scanError ?? (_scanning ? '正在搜索已配置的 BLE 设备…' : '附近没有已配置的设备');
+    return Card(
+      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.88),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_scanning && _scanError == null) ...[
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 12),
+            ],
+            Flexible(child: Text(text, textAlign: TextAlign.center)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeviceCard(ScanResult result) {
+    final name = result.advertisementData.advName.isNotEmpty
+        ? result.advertisementData.advName
+        : result.device.platformName;
+    final config = deviceFilterConfig.devices.firstWhere(
+      (device) => device.matches(name),
+    );
+    final isOnline =
+        _lastSeen[result.device.remoteId.str]?.isAfter(
+          DateTime.now().subtract(const Duration(seconds: 2)),
+        ) ??
+        false;
+    return Card(
+      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.92),
+      child: ListTile(
+        leading: const CircleAvatar(child: Icon(Icons.speaker)),
+        title: Text(config.productName),
+        subtitle: Text('BLE · $name'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('${result.rssi} dBm'),
+            const SizedBox(width: 12),
+            Tooltip(
+              message: isOnline ? '在线' : '已消失',
+              child: Icon(
+                Icons.circle,
+                size: 12,
+                color: isOnline ? Colors.green : Colors.grey,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _cornerTapTimer?.cancel();
+    _presenceTimer?.cancel();
+    _scanResultsSubscription?.cancel();
+    _scanningSubscription?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('首页')),
-        body: Stack(
-          children: [
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.asset(
-                    'assets/images/gnu/gnu-head.png',
-                    width: 180,
-                    height: 180,
-                    fit: BoxFit.contain,
-                    semanticLabel: 'GNU 吉祥物',
-                  ),
-                  const SizedBox(height: 20),
-                  Text('欢迎使用', style: Theme.of(context).textTheme.titleLarge),
-                ],
+    appBar: AppBar(title: const Text('首页')),
+    body: Stack(
+      children: [
+        Positioned.fill(
+          child: ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: ColorFiltered(
+              colorFilter: ColorFilter.mode(
+                Theme.of(context).scaffoldBackgroundColor
+                    .withValues(alpha: 0.68),
+                BlendMode.srcOver,
+              ),
+              child: Image.asset(
+                'assets/images/gnu/gnu-head.png',
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
               ),
             ),
-            Positioned(
-              right: 0,
-              bottom: 0,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: _handleCornerTap,
-                child: const SizedBox(width: 64, height: 64),
-              ),
-            ),
-          ],
+          ),
         ),
-      );
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('欢迎使用', style: Theme.of(context).textTheme.headlineSmall),
+                const SizedBox(height: 24),
+                if (_matchingDevices.isNotEmpty)
+                  ..._matchingDevices.map(_buildDeviceCard)
+                else
+                  _buildScanStatus(),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          right: 0,
+          bottom: 0,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: _handleCornerTap,
+            child: const SizedBox(width: 64, height: 64),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class DeveloperToolsPage extends StatelessWidget {
@@ -97,23 +244,23 @@ class DeveloperToolsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
-        length: 3,
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text('开发者工具'),
-            bottom: const TabBar(
-              tabs: [
-                Tab(icon: Icon(Icons.cable), text: 'com_host'),
-                Tab(icon: Icon(Icons.bluetooth), text: 'BLE 设备'),
-                Tab(icon: Icon(Icons.receipt_long), text: '应用日志'),
-              ],
-            ),
-          ),
-          body: const TabBarView(
-            children: [ComHostTestPage(), BleDevicePage(), AppLogPage()],
-          ),
+    length: 3,
+    child: Scaffold(
+      appBar: AppBar(
+        title: const Text('开发者工具'),
+        bottom: const TabBar(
+          tabs: [
+            Tab(icon: Icon(Icons.cable), text: 'com_host'),
+            Tab(icon: Icon(Icons.bluetooth), text: 'BLE 设备'),
+            Tab(icon: Icon(Icons.receipt_long), text: '应用日志'),
+          ],
         ),
-      );
+      ),
+      body: const TabBarView(
+        children: [ComHostTestPage(), BleDevicePage(), AppLogPage()],
+      ),
+    ),
+  );
 }
 
 class ComHostTestPage extends StatefulWidget {
@@ -133,7 +280,9 @@ class _ComHostTestPageState extends State<ComHostTestPage> {
   @override
   void initState() {
     super.initState();
-    _outputSubscription = ComHostService.instance.outgoingBytes.listen(_showFrame);
+    _outputSubscription = ComHostService.instance.outgoingBytes.listen(
+      _showFrame,
+    );
     _sendTimer = Timer(const Duration(seconds: 2), _sendTestMessage);
   }
 
@@ -161,11 +310,15 @@ class _ComHostTestPageState extends State<ComHostTestPage> {
       setState(() {
         _sendStatus = '发送 ${ping.name} (${ping.brief})，等待 MainController 应答…';
       });
-      final ack = await ComHostService.instance.sendAndWaitAck(ping.id, payload);
+      final ack = await ComHostService.instance.sendAndWaitAck(
+        ping.id,
+        payload,
+      );
       final decoded = ping.decodeAck(ack.data);
       if (!mounted) return;
       setState(() {
-        _sendStatus = '收到 Ping 应答，序列号=${ack.sequence}，'
+        _sendStatus =
+            '收到 Ping 应答，序列号=${ack.sequence}，'
             '运行时间=${decoded['uptime']} 秒，保留字段=${decoded['rsvd']}';
       });
     } catch (error) {
