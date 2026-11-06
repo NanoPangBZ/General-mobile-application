@@ -216,24 +216,26 @@ class _HomePageState extends State<HomePage> {
       final catalog = await ProtocolMessageCatalog.load();
       final ping = catalog.byName('COM_HOST_MSG_ID_PING');
       ComHostMessage? ack;
-      for (var attempt = 1; attempt <= 3; attempt++) {
+      for (var attempt = 1; attempt <= description.pingAttempts; attempt++) {
         try {
           ack = await ComHostService.instance.sendAndWaitAck(
             ping.id,
             ping.encodeData(),
-            timeout: const Duration(milliseconds: 200),
+            timeout: Duration(milliseconds: description.pingTimeoutMs),
           );
           break;
         } catch (error) {
-          if (attempt < 3) {
-            await Future<void>.delayed(const Duration(milliseconds: 300));
+          if (attempt < description.pingAttempts) {
+            await Future<void>.delayed(
+              Duration(milliseconds: description.pingIntervalMs),
+            );
           }
         }
       }
       if (ack == null) {
         throw TimeoutException(
-          'Ping 三次均未收到应答',
-          const Duration(milliseconds: 200),
+          'Ping ${description.pingAttempts} 次均未收到应答',
+          Duration(milliseconds: description.pingTimeoutMs),
         );
       }
       ping.decodeAck(ack.data);

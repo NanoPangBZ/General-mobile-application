@@ -6,6 +6,11 @@ const String deviceDescriptionJson = r'''
   "devices": [
     {
       "productName": "电吉他音箱",
+      "connection": {
+        "pingAttempts": 3,
+        "pingTimeoutMs": 400,
+        "pingIntervalMs": 500
+      },
       "bleName": {
         "pattern": "EGA",
         "match": "exact"
@@ -40,16 +45,26 @@ class DeviceDescriptionCatalog {
 }
 
 class DeviceDescription {
+  static const int defaultPingAttempts = 3;
+  static const int defaultPingTimeoutMs = 200;
+  static const int defaultPingIntervalMs = 300;
+
   const DeviceDescription({
     required this.productName,
     required this.bleNamePattern,
     required this.bleNameMatch,
+    required this.pingAttempts,
+    required this.pingTimeoutMs,
+    required this.pingIntervalMs,
     required this.sppble,
   });
 
   final String productName;
   final String bleNamePattern;
   final String bleNameMatch;
+  final int pingAttempts;
+  final int pingTimeoutMs;
+  final int pingIntervalMs;
   final Map<String, dynamic> sppble;
 
   factory DeviceDescription.fromJson(Map<String, dynamic> json) {
@@ -58,6 +73,18 @@ class DeviceDescription {
       productName: json['productName'] as String,
       bleNamePattern: bleName['pattern'] as String,
       bleNameMatch: bleName['match'] as String,
+      pingAttempts:
+          (json['connection'] as Map<String, dynamic>?)?['pingAttempts']
+              as int? ??
+          defaultPingAttempts,
+      pingTimeoutMs:
+          (json['connection'] as Map<String, dynamic>?)?['pingTimeoutMs']
+              as int? ??
+          defaultPingTimeoutMs,
+      pingIntervalMs:
+          (json['connection'] as Map<String, dynamic>?)?['pingIntervalMs']
+              as int? ??
+          defaultPingIntervalMs,
       sppble: Map<String, dynamic>.unmodifiable(
         json['sppble'] as Map<String, dynamic>,
       ),
