@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import 'dart:ui' as ui;
@@ -14,7 +14,11 @@ import 'device_filter_config.dart';
 import 'protocol_message_catalog.dart';
 import 'app_log_page.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations(const [
+    DeviceOrientation.portraitUp,
+  ]);
   ComHostService.instance.initialize();
   runApp(const DeveloperApp());
 }
