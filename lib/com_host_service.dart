@@ -72,6 +72,32 @@ class ComHostService {
     return result;
   }
 
+  /// Send a request and wait for the matching ACK frame.
+  Future<ComHostMessage> sendAndWaitAck(
+    int messageId,
+    Uint8List data, {
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    final completer = Completer<ComHostMessage>();
+    int? expectedSequence;
+    final subscription = messages.listen((message) {
+      if (message.isAck && message.id == messageId &&
+          message.sequence == expectedSequence && !completer.isCompleted) {
+        completer.complete(message);
+      }
+    }, onError: (Object error, StackTrace stack) {
+      if (!completer.isCompleted) completer.completeError(error, stack);
+    });
+    try {
+      final sequence = send(messageId, data, needAck: true);
+      if (sequence < 0) throw StateError('Native send failed: $sequence');
+      expectedSequence = sequence;
+      return await completer.future.timeout(timeout);
+    } finally {
+      await subscription.cancel();
+    }
+  }
+
   /// Reply to a received request using its sender, id and sequence.
   int sendAck(ComHostMessage request, Uint8List data) {
     if (request.isAck || !request.needsAck || data.isEmpty || data.length > _native.capacity) {

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 import 'com_host_service.dart';
+import 'protocol_message_catalog.dart';
 
 void main() {
   ComHostService.instance.initialize();
@@ -34,7 +35,7 @@ class _ComHostTestPageState extends State<ComHostTestPage> {
   final _outputController = TextEditingController();
   StreamSubscription<Uint8List>? _outputSubscription;
   Timer? _sendTimer;
-  String _sendStatus = '等待发送测试消息…';
+  String _sendStatus = '等待发送 Ping 测试…';
   int _frameCount = 0;
 
   @override
@@ -56,20 +57,27 @@ class _ComHostTestPageState extends State<ComHostTestPage> {
   }
 
   void _sendTestMessage() {
+    unawaited(_sendPing());
+  }
+
+  Future<void> _sendPing() async {
     if (!mounted) return;
     try {
-      final sequence = ComHostService.instance.send(
-        0x00,
-        Uint8List.fromList(const [0x00, 0x01, 0x02, 0x03]),
-        needAck: true,
-      );
+      final catalog = await ProtocolMessageCatalog.load();
+      final ping = catalog.byName('COM_HOST_MSG_ID_PING');
+      final payload = ping.encodeData();
       setState(() {
-        _sendStatus = sequence < 0
-            ? '发送失败，错误码：$sequence'
-            : '已发送 msg_id=0x0000，序列号=$sequence，等待 ACK';
+        _sendStatus = '发送 ${ping.name} (${ping.brief})，等待 MainController 应答…';
+      });
+      final ack = await ComHostService.instance.sendAndWaitAck(ping.id, payload);
+      final decoded = ping.decodeAck(ack.data);
+      if (!mounted) return;
+      setState(() {
+        _sendStatus = '收到 Ping 应答，序列号=${ack.sequence}，'
+            '运行时间=${decoded['uptime']} 秒，保留字段=${decoded['rsvd']}';
       });
     } catch (error) {
-      setState(() => _sendStatus = '发送失败：$error');
+      if (mounted) setState(() => _sendStatus = 'Ping 测试失败：$error');
     }
   }
 
