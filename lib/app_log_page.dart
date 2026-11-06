@@ -41,6 +41,27 @@ class _LogTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final nativeLevel = switch (entry.level) {
+      0 => 'DEBUG',
+      1 => 'INFO',
+      2 => 'WARN',
+      3 => 'ERROR',
+      _ => null,
+    };
+    if (entry.text != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${entry.formattedTime}  ${entry.source}  ${nativeLevel ?? 'LOG'}',
+                style: Theme.of(context).textTheme.titleSmall),
+            const SizedBox(height: 4),
+            SelectableText(entry.text!, style: const TextStyle(fontFamily: 'monospace')),
+          ],
+        ),
+      );
+    }
     final kind = entry.isAck ? 'ACK' : 'MSG';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -48,7 +69,7 @@ class _LogTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${entry.formattedTime}  $kind  ID=0x${entry.messageId.toRadixString(16).padLeft(4, '0').toUpperCase()}',
+            '${entry.formattedTime}  ${entry.source} $kind  ID=0x${entry.messageId.toRadixString(16).padLeft(4, '0').toUpperCase()}',
             style: Theme.of(context).textTheme.titleSmall,
           ),
           const SizedBox(height: 4),

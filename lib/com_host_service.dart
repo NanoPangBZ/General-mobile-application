@@ -28,6 +28,14 @@ class ComHostMessage {
       .join(' ');
 }
 
+class ComHostNativeLog {
+  const ComHostNativeLog({required this.level, required this.timestampMs, required this.text});
+
+  final int level;
+  final int timestampMs;
+  final String text;
+}
+
 /// One native host, one port and one route for the entire app process.
 /// Call every method from the main Dart isolate.
 class ComHostService {
@@ -36,6 +44,7 @@ class ComHostService {
   static final ComHostService instance = ComHostService._();
   final _NativeHost _native;
   final _messages = StreamController<ComHostMessage>.broadcast();
+  final _nativeLogs = StreamController<ComHostNativeLog>.broadcast();
   final _outgoingBytes = StreamController<Uint8List>.broadcast();
   final Queue<Uint8List> _pendingOutput = Queue<Uint8List>();
   TransportWrite? _write;
@@ -44,15 +53,20 @@ class ComHostService {
   bool _writing = false;
 
   Stream<ComHostMessage> get messages => _messages.stream;
+  Stream<ComHostNativeLog> get nativeLogs => _nativeLogs.stream;
   Stream<Uint8List> get outgoingBytes => _outgoingBytes.stream;
   bool get hasTransport => _inputSubscription != null;
   int get droppedOutput => _native.droppedOutput();
   int get droppedMessages => _native.droppedMessages();
+  int get droppedInput => _native.droppedInput();
 
   void initialize() {
     final result = _native.init();
     if (result != 0) throw StateError('com_host init failed: $result');
-    _poller ??= Timer.periodic(const Duration(milliseconds: 10), (_) => _drain());
+    _poller ??= Timer.periodic(const Duration(milliseconds: 10), (_) {
+      _native.run();
+      _drain();
+    });
   }
 
   /// Attach exactly one byte transport. Its incoming chunks may have any size.
@@ -121,7 +135,7 @@ class ComHostService {
     return result;
   }
 
-  /// Supply raw bytes from BLE, USB or another transport to the one port.
+  /// Queue incoming bytes so the native port's read callback consumes them.
   void feed(Uint8List bytes) {
     if (_poller == null) throw StateError('Call initialize first');
     for (var offset = 0; offset < bytes.length; offset += _native.capacity) {
@@ -130,13 +144,24 @@ class ComHostService {
           : bytes.length;
       _native.buffer.asTypedList(end - offset).setAll(0, bytes.sublist(offset, end));
       final result = _native.feed(end - offset);
-      if (result != 0) throw StateError('com_host input failed: $result');
+      if (result != 0) throw StateError('com_host input queue failed: $result');
     }
     _drain();
   }
 
   void _drain() {
     if (_poller == null) return;
+    while (true) {
+      final encodedLength = _native.takeLog();
+      if (encodedLength == 0) break;
+      final length = encodedLength - 1;
+      final bytes = Uint8List.fromList(_native.buffer.asTypedList(length));
+      _nativeLogs.add(ComHostNativeLog(
+        level: _native.logLevel(),
+        timestampMs: _native.logTimestamp(),
+        text: String.fromCharCodes(bytes),
+      ));
+    }
     while (true) {
       final encodedLength = _native.takeMessage();
       if (encodedLength == 0) break;
@@ -192,6 +217,9 @@ class _NativeHost {
     feed = library.lookupFunction<Int32 Function(Uint32), int Function(int)>('mobile_host_feed');
     takeOutput = library.lookupFunction<Int32 Function(), int Function()>('mobile_host_take_output');
     takeMessage = library.lookupFunction<Int32 Function(), int Function()>('mobile_host_take_message');
+    takeLog = library.lookupFunction<Int32 Function(), int Function()>('mobile_host_take_log');
+    logLevel = library.lookupFunction<Int32 Function(), int Function()>('mobile_host_log_level');
+    logTimestamp = library.lookupFunction<Uint32 Function(), int Function()>('mobile_host_log_timestamp');
     messageId = library.lookupFunction<Uint16 Function(), int Function()>('mobile_host_message_id');
     messageSender = library.lookupFunction<Uint8 Function(), int Function()>('mobile_host_message_sender');
     messageSeq = library.lookupFunction<Uint8 Function(), int Function()>('mobile_host_message_seq');
@@ -199,6 +227,8 @@ class _NativeHost {
     messageIsAck = library.lookupFunction<Uint8 Function(), int Function()>('mobile_host_message_is_ack');
     droppedOutput = library.lookupFunction<Uint32 Function(), int Function()>('mobile_host_dropped_output');
     droppedMessages = library.lookupFunction<Uint32 Function(), int Function()>('mobile_host_dropped_messages');
+    run = library.lookupFunction<Void Function(), void Function()>('mobile_host_run');
+    droppedInput = library.lookupFunction<Uint32 Function(), int Function()>('mobile_host_dropped_input');
   }
 
   late final int Function() init;
@@ -207,8 +237,12 @@ class _NativeHost {
   late final int Function(int, int, int) send;
   late final int Function(int, int, int, int) sendAck;
   late final int Function(int) feed;
+  late final void Function() run;
   late final int Function() takeOutput;
   late final int Function() takeMessage;
+  late final int Function() takeLog;
+  late final int Function() logLevel;
+  late final int Function() logTimestamp;
   late final int Function() messageId;
   late final int Function() messageSender;
   late final int Function() messageSeq;
@@ -216,4 +250,5 @@ class _NativeHost {
   late final int Function() messageIsAck;
   late final int Function() droppedOutput;
   late final int Function() droppedMessages;
+  late final int Function() droppedInput;
 }

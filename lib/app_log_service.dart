@@ -9,6 +9,7 @@ import 'com_host_service.dart';
 class AppLogService extends ChangeNotifier {
   AppLogService._() {
     _subscription = ComHostService.instance.messages.listen(_recordMessage);
+    _nativeLogSubscription = ComHostService.instance.nativeLogs.listen(_recordNativeLog);
   }
 
   static final AppLogService instance = AppLogService._();
@@ -16,11 +17,20 @@ class AppLogService extends ChangeNotifier {
 
   final List<AppLogEntry> _entries = <AppLogEntry>[];
   late final StreamSubscription<ComHostMessage> _subscription;
+  late final StreamSubscription<ComHostNativeLog> _nativeLogSubscription;
 
   List<AppLogEntry> get entries => List.unmodifiable(_entries);
 
   void _recordMessage(ComHostMessage message) {
     _entries.insert(0, AppLogEntry.fromMessage(message));
+    if (_entries.length > maxEntries) {
+      _entries.removeRange(maxEntries, _entries.length);
+    }
+    notifyListeners();
+  }
+
+  void _recordNativeLog(ComHostNativeLog log) {
+    _entries.insert(0, AppLogEntry.fromNativeLog(log));
     if (_entries.length > maxEntries) {
       _entries.removeRange(maxEntries, _entries.length);
     }
@@ -36,6 +46,7 @@ class AppLogService extends ChangeNotifier {
   @override
   void dispose() {
     _subscription.cancel();
+    _nativeLogSubscription.cancel();
     super.dispose();
   }
 }
@@ -50,6 +61,9 @@ class AppLogEntry {
     required this.isAck,
     required this.dataLength,
     required this.dataHex,
+    required this.source,
+    required this.level,
+    required this.text,
   });
 
   factory AppLogEntry.fromMessage(ComHostMessage message) => AppLogEntry(
@@ -61,6 +75,23 @@ class AppLogEntry {
         isAck: message.isAck,
         dataLength: message.data.length,
         dataHex: message.dataHex,
+        source: 'com_host MSG',
+        level: null,
+        text: null,
+      );
+
+  factory AppLogEntry.fromNativeLog(ComHostNativeLog log) => AppLogEntry(
+        time: DateTime.now(),
+        messageId: 0,
+        sender: 0,
+        sequence: 0,
+        needsAck: false,
+        isAck: false,
+        dataLength: 0,
+        dataHex: '',
+        source: 'com_host native',
+        level: log.level,
+        text: log.text,
       );
 
   final DateTime time;
@@ -71,6 +102,9 @@ class AppLogEntry {
   final bool isAck;
   final int dataLength;
   final String dataHex;
+  final String source;
+  final int? level;
+  final String? text;
 
   String get formattedTime {
     String two(int value) => value.toString().padLeft(2, '0');
