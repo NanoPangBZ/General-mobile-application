@@ -18,6 +18,10 @@
       "revision": "19.0",
       "buildNumber": "13114758"
     },
+    "emulator": {
+      "systemImage": "system-images;android-36;google_apis;x86_64",
+      "avdName": "developer_app_api36"
+    },
     "packages": [
       "platform-tools",
       "build-tools;36.0.0",

@@ -8,6 +8,7 @@ rem  用法:
 rem    develop_env_install.bat                检查环境（默认）
 rem    develop_env_install.bat check          检查环境
 rem    develop_env_install.bat install -y     自动安装缺失工具链
+rem    develop_env_install.bat install --emulator  同时安装仓库内模拟器
 rem    develop_env_install.bat plan           只打印下载地址与校验和
 rem    develop_env_install.bat env            生成 .tooling\env.ps1 / env.sh
 rem ===========================================================================

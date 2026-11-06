@@ -170,6 +170,16 @@ def sdkmanager_path(manifest: dict) -> Path:
     return base
 
 
+def emulator_path() -> Path:
+    return SDK_DIR / "emulator" / exe("emulator")
+
+
+def avdmanager_path(manifest: dict) -> Path:
+    rev = str(manifest["android"]["cmdlineTools"]["revision"])
+    base = SDK_DIR / "cmdline-tools" / rev / "bin" / "avdmanager"
+    return Path(str(base) + ".bat") if IS_WINDOWS else base
+
+
 def flutter_bin() -> Path:
     return FLUTTER_DIR / "bin" / ("flutter.bat" if IS_WINDOWS else "flutter")
 
@@ -639,6 +649,7 @@ def env_map(manifest: dict, mirror: str) -> Dict[str, Optional[str]]:
         "ANDROID_HOME": str(SDK_DIR),
         "ANDROID_SDK_ROOT": str(SDK_DIR),
         "ANDROID_USER_HOME": str(CACHE_DIR / "android"),
+        "ANDROID_EMULATOR_HOME": str(CACHE_DIR / "android"),
         "ANDROID_AVD_HOME": str(CACHE_DIR / "avd"),
         "ANDROID_NDK_HOME": str(SDK_DIR / "ndk" / ndk) if ndk else None,
         "PUB_CACHE": str(CACHE_DIR / "pub"),
@@ -655,6 +666,7 @@ def env_map(manifest: dict, mirror: str) -> Dict[str, Optional[str]]:
         # flutter_tools 会把 .flutter_tool_state / .flutter_settings 写到 %APPDATA%，
         # 部分机器上该目录不可写，这里一并收敛进仓库
         env["APPDATA"] = str(CACHE_DIR / "appdata")
+        env["LOCALAPPDATA"] = str(CACHE_DIR / "localappdata")
     return env
 
 
@@ -665,6 +677,7 @@ def path_entries(manifest: dict) -> List[str]:
         str(jdk_home() / "bin"),
         str(SDK_DIR / "cmdline-tools" / rev / "bin"),
         str(SDK_DIR / "platform-tools"),
+        str(SDK_DIR / "emulator"),
     ]
 
 
@@ -680,7 +693,7 @@ def process_env(manifest: dict, mirror: str) -> dict:
 def write_env_scripts(manifest: dict, mirror: str) -> None:
     env = env_map(manifest, mirror)
     lines_ps1 = [
-        "# 由 tooling/dev_env.py 生成，请勿手工编辑。用法： . .\\tooling\\env.ps1",
+        "# 由 tooling/dev_env.py 生成，请勿手工编辑。用法： . .\\.tooling\\env.ps1",
         "$_repo = Split-Path -Parent $PSScriptRoot",
         "$_tool = Join-Path $_repo '.tooling'",
         "",
@@ -703,7 +716,8 @@ def write_env_scripts(manifest: dict, mirror: str) -> None:
         '  (Join-Path $_tool "jdk/bin"),',
         '  (Join-Path $_tool "android-sdk/cmdline-tools/%s/bin"),'
         % str(manifest["android"]["cmdlineTools"]["revision"]),
-        '  (Join-Path $_tool "android-sdk/platform-tools")',
+        '  (Join-Path $_tool "android-sdk/platform-tools"),',
+        '  (Join-Path $_tool "android-sdk/emulator")',
         ")",
         '$env:PATH = ($_paths -join ";") + ";" + $env:PATH',
         'Write-Host "dev env ready: $_tool"',
@@ -712,7 +726,7 @@ def write_env_scripts(manifest: dict, mirror: str) -> None:
     ENV_PS1.write_text("\r\n".join(lines_ps1), encoding="utf-8")
 
     sh = [
-        "# 由 tooling/dev_env.py 生成，请勿手工编辑。用法： source tooling/env.sh",
+        "# 由 tooling/dev_env.py 生成，请勿手工编辑。用法： source .tooling/env.sh",
         '_dev_env_repo="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")/.." && pwd)"',
         '_dev_env_tool="$_dev_env_repo/.tooling"',
         "",
@@ -733,7 +747,8 @@ def write_env_scripts(manifest: dict, mirror: str) -> None:
         'export PATH="$_dev_env_tool/flutter/bin:'
         '$_dev_env_tool/jdk/bin:'
         '$_dev_env_tool/android-sdk/cmdline-tools/%s/bin:'
-        '$_dev_env_tool/android-sdk/platform-tools:$PATH"' % revision,
+        '$_dev_env_tool/android-sdk/platform-tools:'
+        '$_dev_env_tool/android-sdk/emulator:$PATH"' % revision,
         "unset _dev_env_repo _dev_env_tool",
         "",
     ]
@@ -855,6 +870,20 @@ def collect_checks(manifest: dict, mirror: str) -> List[Tuple[str, str, str]]:
     rows.append(("env scripts", STATUS_OK if ENV_SH.is_file() and ENV_PS1.is_file() else STATUS_WARN,
                  "tooling 已生成" if ENV_SH.is_file() and ENV_PS1.is_file() else "未生成，运行 env"))
 
+    if IS_WINDOWS:
+        emulator = manifest["android"].get("emulator", {})
+        image = str(emulator.get("systemImage", ""))
+        avd_name = str(emulator.get("avdName", ""))
+        avd_home = CACHE_DIR / "avd"
+        has_avd = bool(avd_name and (avd_home / (avd_name + ".avd")).is_dir())
+        emulator_ready = emulator_path().is_file()
+        rows.append(("Android Emulator", STATUS_INFO if emulator_ready else STATUS_WARN,
+                     "已安装" if emulator_ready else "可选：运行 install --emulator 安装"))
+        image_ready = bool(image and android_package_present(image))
+        rows.append(("Android system image", STATUS_OK if image_ready else STATUS_INFO,
+                     image if image_ready else "可选：随 --emulator 安装"))
+        rows.append(("Android virtual device", STATUS_OK if has_avd else STATUS_INFO,
+                     avd_name if has_avd else "可选：随 --emulator 创建"))
     rows.append(("VS Build Tools", STATUS_INFO, "跳过：Windows 桌面构建不在本脚本范围"))
     rows.append(("Xcode", STATUS_INFO, "跳过：iOS 构建需要 macOS，本脚本不处理"))
     return rows
@@ -878,8 +907,8 @@ def print_report(rows: List[Tuple[str, str, str]], manifest: dict, mirror: str) 
         say("运行  python tooling/dev_env.py install  自动补全（镜像：%s）。" % mirror)
         return False
     say(_c("32", "环境检查通过。") + " 激活方式：")
-    say("  PowerShell : . .\\tooling\\env.ps1")
-    say("  bash/zsh   : source tooling/env.sh")
+    say("  PowerShell : . .\\.tooling\\env.ps1")
+    say("  bash/zsh   : source .tooling/env.sh")
     return True
 
 
@@ -889,7 +918,8 @@ def print_report(rows: List[Tuple[str, str, str]], manifest: dict, mirror: str) 
 
 
 def _ensure_dirs() -> None:
-    for path in (TOOLING, CACHE_DIR, DOWNLOAD_DIR, TMP_DIR, CACHE_DIR / "appdata", CACHE_DIR / "gradle", CACHE_DIR / "pub"):
+    for path in (TOOLING, CACHE_DIR, DOWNLOAD_DIR, TMP_DIR, CACHE_DIR / "appdata",
+                 CACHE_DIR / "localappdata", CACHE_DIR / "gradle", CACHE_DIR / "pub"):
         path.mkdir(parents=True, exist_ok=True)
 
 
@@ -1012,15 +1042,22 @@ def android_package_present(package: str) -> bool:
         return (SDK_DIR / "platforms" / spec / "android.jar").is_file()
     if kind == "ndk":
         return (SDK_DIR / "ndk" / spec / "source.properties").is_file()
+    if kind == "emulator":
+        return emulator_path().is_file()
+    if kind == "system-images":
+        # The package path includes "system-images" as its first directory.
+        return (SDK_DIR / kind / Path(*spec.split(";")) / "source.properties").is_file()
     return True
 
 
-def install_android_packages(manifest: dict, mirror: str, verbose: bool) -> None:
+def install_android_packages(
+    manifest: dict, mirror: str, verbose: bool, extra_packages: Optional[List[str]] = None
+) -> None:
     sdkmanager = sdkmanager_path(manifest)
     if not sdkmanager.is_file():
         die("sdkmanager 不存在，请先安装 cmdline-tools")
     env = process_env(manifest, mirror)
-    packages = list(manifest["android"].get("packages", []))
+    packages = list(manifest["android"].get("packages", [])) + (extra_packages or [])
     missing = [p for p in packages if not android_package_present(p)]
     if not missing:
         note("Android SDK 组件均已安装：%s" % ", ".join(packages))
@@ -1043,6 +1080,38 @@ def install_android_packages(manifest: dict, mirror: str, verbose: bool) -> None
         if attempt == 1:
             warn("sdkmanager 失败，重试一次…")
     die("sdkmanager 执行失败：\n%s" % last_output.strip()[-2000:])
+
+
+def create_android_avd(manifest: dict, mirror: str, verbose: bool) -> None:
+    emulator = manifest["android"].get("emulator", {})
+    image = str(emulator.get("systemImage", ""))
+    name = str(emulator.get("avdName", "developer_app_api36"))
+    if not image:
+        die("versions.json 缺少 android.emulator.systemImage")
+    if not android_package_present(image):
+        die("Android 模拟器系统镜像未安装：%s" % image)
+
+    avd_home = CACHE_DIR / "avd"
+    avd_home.mkdir(parents=True, exist_ok=True)
+    avd_dir = avd_home / (name + ".avd")
+    avd_ini = avd_home / (name + ".ini")
+    if avd_dir.is_dir() and avd_ini.is_file():
+        note("Android 虚拟设备已存在：%s" % name)
+        return
+
+    manager = avdmanager_path(manifest)
+    if not manager.is_file():
+        die("avdmanager 不存在，请检查 cmdline-tools")
+    step("创建 Android 虚拟设备 %s" % name)
+    env = process_env(manifest, mirror)
+    env["ANDROID_AVD_HOME"] = str(avd_home)
+    cmd = tool_cmd(manager, "create", "avd", "--force", "--name", name,
+                   "--package", image, "--device", "pixel_2")
+    proc = _run_streamed(cmd, env, verbose, timeout=300, stdin_text="no\n")
+    if proc.returncode != 0 or not avd_ini.is_file():
+        output = ((proc.stdout or "") + (proc.stderr or ""))[-2000:]
+        die("创建 Android 虚拟设备失败：\n%s" % output.strip())
+    ok("Android 虚拟设备已创建：%s（%s）" % (name, rel(avd_dir)))
 
 
 def accept_licenses(manifest: dict, mirror: str) -> None:
@@ -1088,10 +1157,14 @@ def bootstrap_flutter(manifest: dict, mirror: str) -> None:
 
 
 def cmd_install(manifest: dict, mirror: str, args) -> int:
+    if args.emulator and not IS_WINDOWS:
+        die("--emulator 目前仅支持 Windows")
     preflight(manifest)
     _ensure_dirs()
     dl = Downloader(verbose=args.verbose)
     only = {part.strip() for part in args.only.split(",") if part.strip()} or {"flutter", "jdk", "android"}
+    if args.emulator and "android" not in only:
+        die("安装模拟器需要包含 android 组件；请移除 --only 限制或加入 android")
 
     todo = []
     want_flutter = str(manifest["flutter"]["version"])
@@ -1114,6 +1187,9 @@ def cmd_install(manifest: dict, mirror: str, args) -> int:
 
     if args.dry_run:
         step("演练模式：仅解析下载项")
+        if args.emulator:
+            emulator = manifest["android"].get("emulator", {})
+            say("  emulator %s + %s" % ("emulator", emulator.get("systemImage", "未配置系统镜像")))
         for name in ("flutter", "jdk", "android"):
             if name not in only:
                 continue
@@ -1129,7 +1205,13 @@ def cmd_install(manifest: dict, mirror: str, args) -> int:
 
     if "android" in only:
         accept_licenses(manifest, mirror)
-        install_android_packages(manifest, mirror, args.verbose)
+        extras = []
+        if args.emulator:
+            emulator = manifest["android"].get("emulator", {})
+            extras = ["emulator", str(emulator.get("systemImage", ""))]
+        install_android_packages(manifest, mirror, args.verbose, extras)
+        if args.emulator:
+            create_android_avd(manifest, mirror, args.verbose)
     if "flutter" in only:
         bootstrap_flutter(manifest, mirror)
     write_env_scripts(manifest, mirror)
@@ -1137,8 +1219,8 @@ def cmd_install(manifest: dict, mirror: str, args) -> int:
 
     say("")
     ok("安装完成，激活环境：")
-    say("  PowerShell : . .\\tooling\\env.ps1")
-    say("  bash/zsh   : source tooling/env.sh")
+    say("  PowerShell : . .\\.tooling\\env.ps1")
+    say("  bash/zsh   : source .tooling/env.sh")
     return 0 if cmd_check(manifest, mirror) else 1
 
 
@@ -1192,6 +1274,7 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("--dry-run", action="store_true", help="只解析下载项，不执行")
         p.add_argument("--verbose", "-v", action="store_true", help="输出子进程日志")
         p.add_argument("--only", default="", help="只处理指定组件，逗号分隔：flutter,jdk,android")
+        p.add_argument("--emulator", action="store_true", help="Windows：同时安装 Android Emulator 和系统镜像")
 
     for name, help_text in (
         ("check", "检查工具链（默认）"),
@@ -1230,8 +1313,11 @@ def main(argv: Optional[List[str]] = None) -> int:
             say("工具链目录：%s" % TOOLING)
             say("清单：%s" % rel(MANIFEST_PATH))
             say("")
+            if IS_WINDOWS and not args.emulator and not args.yes and sys.stdin.isatty():
+                answer = input("是否将 Android Emulator 和系统镜像也安装到仓库 .tooling 内？[y/N] ")
+                args.emulator = answer.strip().lower() in ("y", "yes")
             if not args.yes and sys.stdin.isatty():
-                answer = input("将下载 Flutter/JDK/Android SDK 到 .tooling（约 3 GB），继续？[y/N] ")
+                answer = input("将下载 Flutter/JDK/Android SDK 到 .tooling（模拟器可选，额外占用数 GB），继续？[y/N] ")
                 if answer.strip().lower() not in ("y", "yes"):
                     say("已取消。")
                     return 0
