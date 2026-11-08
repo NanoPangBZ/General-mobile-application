@@ -32,7 +32,7 @@
   "mirrors": {
     "cn": {
       "flutterStorage": "https://storage.flutter-io.cn",
-      "pubHosted": "https://pub.flutter-io.cn"
+      "pubHosted": "https://pub.dev"
     },
     "global": {
       "flutterStorage": "https://storage.googleapis.com",
