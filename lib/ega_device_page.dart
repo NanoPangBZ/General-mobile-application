@@ -1,9 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'com_host_service.dart';
-import 'device_info.dart';
 import 'device_page.dart';
-import 'protocol_message_catalog.dart';
+import 'ega_status.dart';
 
 /// EGA guitar amplifier page, sharing the base device connection lifecycle.
 class EgaDevicePage extends DevicePage {
@@ -24,39 +25,40 @@ class _EgaDeviceContent extends StatefulWidget {
 }
 
 class _EgaDeviceContentState extends State<_EgaDeviceContent> {
-  final _deviceInfoController = TextEditingController(text: '点击“测试”获取设备信息');
-  bool _requesting = false;
+  final _statusController = TextEditingController(text: '等待设备主动推送 status…');
+  StreamSubscription<ComHostMessage>? _statusSubscription;
 
-  void _showDeviceInfo(String text) {
-    _deviceInfoController.text = text;
+  @override
+  void initState() {
+    super.initState();
+    _statusSubscription = ComHostService.instance.messages.listen(
+      _handleMessage,
+      onError: _handleStreamError,
+    );
   }
 
-  Future<void> _requestDeviceInfo() async {
-    if (_requesting) return;
-    setState(() {
-      _requesting = true;
-      _showDeviceInfo('正在获取设备信息…');
-    });
-
+  void _handleMessage(ComHostMessage message) {
+    if (message.id != EgaStatus.pushMessageId || message.isAck) return;
     try {
-      final catalog = await ProtocolMessageCatalog.load();
-      final request = catalog.byName('COM_HOST_MSG_ID_REQ_DEVICE_INFO');
-      final ack = await ComHostService.instance.sendAndWaitAck(
-        request.id,
-        request.encodeData(),
-      );
-      final info = DeviceInfo.fromBytes(ack.data);
-      if (mounted) setState(() => _showDeviceInfo(info.format()));
+      final status = EgaStatus.fromBytes(message.data);
+      if (mounted) setState(() => _statusController.text = status.format());
     } catch (error) {
-      if (mounted) setState(() => _showDeviceInfo('获取失败：$error'));
-    } finally {
-      if (mounted) setState(() => _requesting = false);
+      if (mounted) {
+        setState(() => _statusController.text = 'status 解析失败：$error');
+      }
+    }
+  }
+
+  void _handleStreamError(Object error) {
+    if (mounted) {
+      setState(() => _statusController.text = 'status 接收失败：$error');
     }
   }
 
   @override
   void dispose() {
-    _deviceInfoController.dispose();
+    _statusSubscription?.cancel();
+    _statusController.dispose();
     super.dispose();
   }
 
@@ -66,22 +68,18 @@ class _EgaDeviceContentState extends State<_EgaDeviceContent> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ElevatedButton(
-          onPressed: _requesting ? null : _requestDeviceInfo,
-          child: Text(_requesting ? '获取中…' : '测试'),
-        ),
-        const SizedBox(height: 12),
+        Text('EGA Status', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
         Expanded(
           child: TextField(
-            controller: _deviceInfoController,
+            controller: _statusController,
             readOnly: true,
             expands: true,
             maxLines: null,
             minLines: null,
             textAlignVertical: TextAlignVertical.top,
             decoration: const InputDecoration(
-              labelText: '设备信息',
-              alignLabelWithHint: true,
+              labelText: '设备状态',
               border: OutlineInputBorder(),
               contentPadding: EdgeInsets.all(12),
             ),
