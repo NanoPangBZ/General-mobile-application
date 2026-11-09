@@ -3,8 +3,8 @@ import 'dart:typed_data';
 /// EGA private status pushed by the device after subscription.
 class EgaStatus {
   const EgaStatus({
-    required this.bleEnabled,
-    required this.bleConnected,
+    required this.bluetoothEnabled,
+    required this.bluetoothConnected,
     required this.uhfEnabled,
     required this.uhfConnected,
     required this.batteryPercent,
@@ -34,8 +34,8 @@ class EgaStatus {
     return data.buffer.asUint8List();
   }
 
-  final bool bleEnabled;
-  final bool bleConnected;
+  final bool bluetoothEnabled;
+  final bool bluetoothConnected;
   final bool uhfEnabled;
   final bool uhfConnected;
   final int batteryPercent;
@@ -61,8 +61,8 @@ class EgaStatus {
     final first = data.getUint32(0, Endian.little);
     final second = data.getUint32(4, Endian.little);
     return EgaStatus(
-      bleEnabled: _bit(first, 0),
-      bleConnected: _bit(first, 1),
+      bluetoothEnabled: _bit(first, 0),
+      bluetoothConnected: _bit(first, 1),
       uhfEnabled: _bit(first, 2),
       uhfConnected: _bit(first, 3),
       batteryPercent: (first >> 4) & 0x7f,
@@ -83,7 +83,7 @@ class EgaStatus {
   static bool _bit(int value, int offset) => value & (1 << offset) != 0;
 
   String format() => [
-    'BLE：${_enabled(bleEnabled)}，${_connected(bleConnected)}',
+    '蓝牙：${_enabled(bluetoothEnabled)}，${_connected(bluetoothConnected)}',
     'UHF：${_enabled(uhfEnabled)}，${_connected(uhfConnected)}',
     '电池：$batteryPercent%${batteryCharging ? '（充电中）' : ''}',
     'USB：${_connected(usbConnected)}',

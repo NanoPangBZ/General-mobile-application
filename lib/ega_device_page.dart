@@ -176,9 +176,9 @@ class _StatusDashboard extends StatelessWidget {
             children: [
               _StatusPill(
                 icon: Icons.bluetooth,
-                label: 'BLE',
-                enabled: status.bleEnabled,
-                active: status.bleConnected,
+                label: '蓝牙',
+                enabled: status.bluetoothEnabled,
+                active: status.bluetoothConnected,
               ),
               _StatusPill(
                 icon: Icons.podcasts,
