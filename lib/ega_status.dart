@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-/// EGA private status pushed by the device without a subscription request.
+/// EGA private status pushed by the device after subscription.
 class EgaStatus {
   const EgaStatus({
     required this.bleEnabled,
@@ -17,6 +17,8 @@ class EgaStatus {
     required this.drummerVolume,
     required this.drummerType,
     required this.bpmRaw,
+    required this.systemVolume,
+    required this.guitarVolume,
   });
 
   static const int subscriptionMessageId = 0x0220;
@@ -46,6 +48,8 @@ class EgaStatus {
   final int drummerVolume;
   final int drummerType;
   final int bpmRaw;
+  final int systemVolume;
+  final int guitarVolume;
 
   factory EgaStatus.fromBytes(Uint8List bytes) {
     if (bytes.length != payloadLength) {
@@ -71,6 +75,8 @@ class EgaStatus {
       drummerVolume: (first >> 22) & 0x7f,
       drummerType: second & 0x3f,
       bpmRaw: (second >> 6) & 0xff,
+      systemVolume: (second >> 14) & 0x7f,
+      guitarVolume: (second >> 21) & 0x7f,
     );
   }
 
@@ -88,6 +94,8 @@ class EgaStatus {
     '鼓机音量：$drummerVolume%',
     '鼓机类型：${_indexedValue(drummerType, 20)}',
     'BPM：${bpmRaw <= 220 ? bpmRaw + 40 : '无效（raw: $bpmRaw）'}',
+    '系统音量：$systemVolume%',
+    '吉他音量：$guitarVolume%',
   ].join('\n');
 
   static String _enabled(bool value) => value ? '启用' : '未启用';

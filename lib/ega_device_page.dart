@@ -196,6 +196,8 @@ class _StatusDashboard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
+        _VolumePanel(status: status),
+        const SizedBox(height: 12),
         _DrummerPanel(status: status),
         const SizedBox(height: 12),
         _SectionCard(
@@ -463,6 +465,106 @@ class _DrummerPanel extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _VolumePanel extends StatelessWidget {
+  const _VolumePanel({required this.status});
+
+  final EgaStatus status;
+
+  @override
+  Widget build(BuildContext context) => _SectionCard(
+    title: '音量',
+    icon: Icons.tune,
+    child: Column(
+      children: [
+        _VolumeRow(
+          icon: Icons.volume_up,
+          label: '系统音量',
+          value: status.systemVolume,
+          color: const Color(0xffffb43b),
+        ),
+        const SizedBox(height: 16),
+        _VolumeRow(
+          icon: Icons.electric_bolt,
+          label: '吉他音量',
+          value: status.guitarVolume,
+          color: const Color(0xffef6c67),
+        ),
+      ],
+    ),
+  );
+}
+
+class _VolumeRow extends StatelessWidget {
+  const _VolumeRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final int value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final displayValue = value.clamp(0, 100);
+    return Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '$value%',
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 7),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: displayValue / 100,
+                  minHeight: 7,
+                  color: color,
+                  backgroundColor: const Color(0xff303237),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
