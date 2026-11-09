@@ -25,7 +25,10 @@ class _EgaDeviceContent extends StatefulWidget {
 }
 
 class _EgaDeviceContentState extends State<_EgaDeviceContent> {
+  static const _subscriptionRefreshInterval = Duration(seconds: 2);
+
   StreamSubscription<ComHostMessage>? _statusSubscription;
+  Timer? _subscriptionTimer;
   EgaStatus? _status;
   String? _error;
 
@@ -36,9 +39,33 @@ class _EgaDeviceContentState extends State<_EgaDeviceContent> {
       _handleMessage,
       onError: _handleStreamError,
     );
+    _sendStatusSubscription();
+    _subscriptionTimer = Timer.periodic(
+      _subscriptionRefreshInterval,
+      (_) => _sendStatusSubscription(),
+    );
+  }
+
+  void _sendStatusSubscription() {
+    try {
+      final sequence = ComHostService.instance.send(
+        EgaStatus.subscriptionMessageId,
+        EgaStatus.buildSubscriptionPayload(),
+        needAck: true,
+      );
+      if (sequence < 0) {
+        throw StateError('com_host 发送失败：$sequence');
+      }
+    } catch (error) {
+      if (mounted) setState(() => _error = '状态订阅失败：$error');
+    }
   }
 
   void _handleMessage(ComHostMessage message) {
+    if (message.id == EgaStatus.subscriptionMessageId && message.isAck) {
+      _handleSubscriptionAck(message);
+      return;
+    }
     if (message.id != EgaStatus.pushMessageId || message.isAck) return;
     try {
       final status = EgaStatus.fromBytes(message.data);
@@ -53,12 +80,28 @@ class _EgaDeviceContentState extends State<_EgaDeviceContent> {
     }
   }
 
+  void _handleSubscriptionAck(ComHostMessage message) {
+    final result = message.data.isEmpty ? null : message.data.first;
+    if (result == 0) {
+      if (mounted && _error?.startsWith('状态订阅') == true) {
+        setState(() => _error = null);
+      }
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _error = result == null ? '状态订阅应答为空' : '状态订阅被设备拒绝，结果码：$result';
+      });
+    }
+  }
+
   void _handleStreamError(Object error) {
     if (mounted) setState(() => _error = '状态接收失败：$error');
   }
 
   @override
   void dispose() {
+    _subscriptionTimer?.cancel();
     _statusSubscription?.cancel();
     super.dispose();
   }

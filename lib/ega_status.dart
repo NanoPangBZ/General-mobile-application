@@ -19,8 +19,18 @@ class EgaStatus {
     required this.bpmRaw,
   });
 
+  static const int subscriptionMessageId = 0x0220;
   static const int pushMessageId = 0x0221;
+  static const int pushCycleMs = 500;
   static const int payloadLength = 8;
+
+  /// subscribe=1, notify_on_change=1, push_cycle_ms=500, reserved=0.
+  static Uint8List buildSubscriptionPayload() {
+    final data = ByteData(5);
+    data.setUint8(0, 0x03);
+    data.setUint16(1, pushCycleMs, Endian.little);
+    return data.buffer.asUint8List();
+  }
 
   final bool bleEnabled;
   final bool bleConnected;
